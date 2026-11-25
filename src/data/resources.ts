@@ -89,6 +89,17 @@ export const resources: Resource[] = [
   // Phase 8 — Build the Lyra Prototype
   { id: 'expo-docs', phaseId: 'p8', name: 'Expo Documentation', type: 'documentation', url: 'https://docs.expo.dev/', description: 'Main reference while building Lyra.', topics: ['Expo', 'Reference'] },
   { id: 'expo-typescript', phaseId: 'p8', name: 'Expo — Using TypeScript', type: 'reference', url: 'https://docs.expo.dev/guides/typescript/', description: 'Configuring TypeScript in an Expo project.', topics: ['TypeScript', 'Expo'] },
+  // Phase 9 — Lyra MVP Build Plan (sources from the architecture review)
+  { id: 'expo-sdk-57', phaseId: 'p9', name: 'Expo SDK 57 changelog', type: 'reference', url: 'https://expo.dev/changelog/sdk-57', description: 'What changed in SDK 57, including bundled library versions. The review recommends the latest stable SDK, with 57 as a safe fallback.', topics: ['Expo', 'Versions'] },
+  { id: 'expo-new-arch', phaseId: 'p9', name: 'Expo — New Architecture guide', type: 'documentation', url: 'https://docs.expo.dev/guides/new-architecture', description: 'SDK 55 and later run only on the New Architecture.', topics: ['Expo', 'React Native'] },
+  { id: 'expo-sqlite-ref', phaseId: 'p9', name: 'Expo SQLite reference', type: 'reference', url: 'https://docs.expo.dev/versions/v57.0.0/sdk/sqlite.md', description: 'Local database for word packs and the review log. Web support is still alpha.', topics: ['SQLite', 'Offline'] },
+  { id: 'expo-agents', phaseId: 'p9', name: 'Expo — Agents guide for Claude Code', type: 'documentation', url: 'https://docs.expo.dev/agents', description: 'The official Expo plugin installs Expo skills and the Expo MCP server, reducing outdated-API mistakes.', topics: ['Claude Code', 'Tooling'] },
+  { id: 'reanimated-start', phaseId: 'p9', name: 'Reanimated — Getting started', type: 'documentation', url: 'https://docs.swmansion.com/react-native-reanimated/docs/fundamentals/getting-started', description: 'Reanimated 4 needs the New Architecture and the separate react-native-worklets package. Install via npx expo install.', topics: ['Animations', 'Games'] },
+  { id: 'ts-fsrs', phaseId: 'p9', name: 'ts-fsrs repository', type: 'reference', url: 'https://github.com/open-spaced-repetition/ts-fsrs', description: 'Pure TypeScript implementation of the FSRS spaced-repetition scheduler. Wrap it behind your own interface.', topics: ['FSRS', 'Spaced repetition'] },
+  { id: 'expo-router-static', phaseId: 'p9', name: 'Expo Router — Static rendering', type: 'documentation', url: 'https://docs.expo.dev/router/web/static-rendering/', description: 'Relevant later, for web and marketing pages. Not needed for the MVP.', topics: ['Web', 'Expo Router'] },
+
+  // Phase 10 — Security, Legal and Store Release
+  { id: 'google-play-testing', phaseId: 'p10', name: 'Google Play — testing requirements for new personal accounts', type: 'documentation', url: 'https://support.google.com/googleplay/android-developer/answer/14151465?hl=en', description: 'Personal developer accounts created after November 13, 2023 need a closed test with 12 testers opted in for 14 continuous days before applying for production.', topics: ['Google Play', 'Release'] },
 ];
 
 const byId = new Map(resources.map((r) => [r.id, r]));

@@ -58,7 +58,7 @@ export function RoadmapPage() {
     <>
       <PageHeader
         title="Learning roadmap"
-        description="Nine phases from zero to your first Lyra prototype. Follow the order, but feel free to explore."
+        description={`${curriculum.length} phases from zero to a released Lyra. Follow the order, but feel free to explore.`}
       />
 
       <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center">

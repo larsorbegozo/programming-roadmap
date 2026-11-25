@@ -17,6 +17,8 @@ const phaseMilestoneCopy: Record<string, string> = {
   p6: 'Data in the cloud',
   p7: 'Professional workflow',
   p8: 'Lyra prototype',
+  p9: 'Lyra MVP built',
+  p10: 'Release-ready',
 };
 
 export const phaseMilestones: MilestoneDefinition[] = curriculum.map((phase) => ({

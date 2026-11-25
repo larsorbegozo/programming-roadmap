@@ -839,6 +839,272 @@ const phaseInputs: PhaseInput[] = [
       { title: 'Implement a basic learning session', description: 'Combine cards and quiz into a short learning session flow.', objectives: ['Design a session flow.', 'Show a summary at the end.'], resources: ['expo-docs'], difficulty: 'advanced', minutes: 180 },
     ],
   },
+  {
+    number: 9,
+    title: 'Lyra MVP Build Plan',
+    duration: 'Ongoing, after the Phase 8 prototype',
+    estimatedWeeks: 6,
+    ongoing: true,
+    practiceLabel: 'Done when…',
+    description:
+      'The stage-by-stage plan from your architecture review: build the learning engine and one finished game before polished screens, and add leagues, iOS and web only after a closed test shows people come back. Phase 8 is the simple first prototype; this phase is the fuller build.',
+    objectives: [
+      'Follow the recommended offline-first architecture: the phone owns the study loop, Supabase owns accounts, content and competition.',
+      'Build the engine and one finished game before any polished screens.',
+      'Store every answer as an immutable review event and derive card state from those events.',
+      'Validate with a closed test before adding anything else.',
+    ],
+    resourceIds: ['expo-agents', 'expo-sdk-57', 'expo-sqlite-ref', 'ts-fsrs', 'reanimated-start'],
+    lessons: [
+      {
+        title: 'Understand the recommended architecture',
+        description:
+          'An offline-first app that stores every answer as an event. Games only report a result; the engine turns it into a rating and a next review date. New review events upload once, and word packs download from Storage.',
+        objectives: [
+          'Explain why you store immutable review events instead of syncing mutable rows.',
+          'Describe what lives on the phone (SQLite, session state) and what lives on Supabase (auth, content, leagues).',
+          'Know which technologies are deliberately left out of the MVP: NativeWind, PowerSync, Next.js, a monorepo, leagues, PvP, iOS, web and subscriptions.',
+        ],
+        resources: ['expo-new-arch', 'expo-sqlite-ref'],
+        difficulty: 'intermediate',
+        minutes: 60,
+      },
+      {
+        title: 'Setup: SDK, development build and CLAUDE.md',
+        description:
+          'Create the project on the latest stable Expo SDK (SDK 57 at expo@57.0.17 or later is a safe fallback), run a development build on a real Android phone, install the Expo plugin for Claude Code and write a strict CLAUDE.md.',
+        objectives: [
+          'Create the project with create-expo-app and run a development build, not Expo Go.',
+          'Install the official Expo plugin for Claude Code.',
+          'Add typecheck and lint scripts; install packages only with npx expo install.',
+        ],
+        resources: ['expo-agents', 'expo-sdk-57', 'expo-new-arch'],
+        exercises: ['Done when: the app runs on your phone and typecheck plus lint pass'],
+        difficulty: 'intermediate',
+        minutes: 120,
+      },
+      {
+        title: 'Engine: rating policy and scheduler wrapper',
+        description:
+          'A plain TypeScript module in core/learning with no React and no network. Every game returns the same result shape; a rating policy maps it to FSRS ratings and ts-fsrs computes the next review. Wrap ts-fsrs behind your own interface.',
+        objectives: [
+          'Define the shared game result: word, exercise type, correct or not, hints used, response time.',
+          'Map results to ratings: wrong is Again, correct with a hint is Hard, correct is Good, unaided recall can earn Easy; recognition exercises are capped at Good.',
+          'Write unit tests for every rating-policy change, and keep React Native imports out of core/.',
+        ],
+        resources: ['ts-fsrs'],
+        exercises: ['Done when: tests prove ratings map correctly and a replay rebuilds identical card state'],
+        difficulty: 'advanced',
+        minutes: 180,
+      },
+      {
+        title: 'Engine: append-only review events and replay',
+        description:
+          'review_events is append-only with a client-generated UUID, card, exercise type, rating, hints, timing, timestamp and device id. Card state is rebuilt by replaying events in order.',
+        objectives: [
+          'Design the review_events record.',
+          'Rebuild card state by replaying events.',
+          'Keep scheduler fuzz off or seeded so replays match.',
+        ],
+        resources: ['ts-fsrs', 'expo-sqlite-ref'],
+        difficulty: 'advanced',
+        minutes: 120,
+      },
+      {
+        title: 'Content and storage',
+        description:
+          'A SQLite schema with migrations, a 200 to 500 word pack with audio, and a local import. Record each content source and licence in the pack metadata.',
+        objectives: [
+          'Create the SQLite schema and migrations.',
+          'Import a versioned word pack, with audio, from local files.',
+          'Store the source and licence of every item in the pack metadata.',
+        ],
+        resources: ['expo-sqlite-ref'],
+        exercises: ['Done when: a pack loads offline and survives app restarts'],
+        difficulty: 'intermediate',
+        minutes: 180,
+      },
+      {
+        title: 'First game: article sorter and session runner',
+        description:
+          'Build the article sorter with drag and drop, plus the shared session runner that saves review events. Test on a low-end Android phone before building a second game.',
+        objectives: [
+          'Build drag and drop with Gesture Handler and Reanimated.',
+          'Build a session runner that saves a review event for every answer.',
+          'Run the game on a low-end Android device and keep few animated views on screen at once.',
+        ],
+        resources: ['reanimated-start'],
+        exercises: ['Done when: a five-minute session saves events and schedules next reviews'],
+        difficulty: 'advanced',
+        minutes: 240,
+      },
+      {
+        title: 'More games and real screens',
+        description:
+          'Two more games on the same session runner, then Home, Learn and Stats screens built from real data (not mock data).',
+        objectives: [
+          'Add two games without changing core/.',
+          'Build Home, Learn and Stats from real stored data.',
+        ],
+        resources: ['reanimated-start'],
+        exercises: ['Done when: adding a game needs no change to core/'],
+        difficulty: 'advanced',
+        minutes: 240,
+      },
+      {
+        title: 'Auth and sync',
+        description:
+          'Supabase Auth, Row Level Security, an Edge Function that inserts uploaded review events idempotently, and restore on a fresh install by replaying events.',
+        objectives: [
+          'Add sign-up and sign-in.',
+          'Upload unsynced events in batches to an Edge Function that ignores duplicates.',
+          'Restore a second device by downloading and replaying events.',
+        ],
+        resources: ['supabase-auth', 'supabase-rls', 'supabase-expo'],
+        exercises: ['Done when: you study in airplane mode, reconnect, and events appear exactly once; a second device matches'],
+        difficulty: 'advanced',
+        minutes: 240,
+      },
+      {
+        title: 'Closed test and validation',
+        description:
+          'Run a Google Play closed test with 12 or more testers for 14 days, add PostHog with the first testers, and use day-7 retention and session counts to decide whether to continue.',
+        objectives: [
+          'Recruit testers during the build, not after it.',
+          'Add analytics only once real testers exist.',
+          'Decide whether to continue based on retention, not feelings.',
+        ],
+        resources: ['google-play-testing'],
+        exercises: ['Done when: day-7 retention and session counts tell you whether to continue'],
+        difficulty: 'intermediate',
+        minutes: 90,
+      },
+      {
+        title: 'After validation (later)',
+        description:
+          'Only after the closed test shows people return: XP, streaks and goals; then leagues and async PvP; then iOS, web and subscriptions. Each stage ships only after the previous one proves its value.',
+        objectives: [
+          'Resist building leagues, PvP, iOS, web or subscriptions before retention is proven.',
+          'Know that web is online-first at launch because expo-sqlite on web is still alpha.',
+        ],
+        resources: ['expo-router-static', 'expo-sqlite-ref'],
+        difficulty: 'advanced',
+        minutes: 45,
+      },
+    ],
+  },
+  {
+    number: 10,
+    title: 'Security, Legal and Store Release',
+    duration: 'Ongoing, alongside Phase 9',
+    estimatedWeeks: 2,
+    ongoing: true,
+    practiceLabel: 'Checks',
+    description:
+      'The security, content-licensing and store-release items from your architecture review. They are cheap to do early and expensive to fix later.',
+    objectives: [
+      'Protect user data with Row Level Security on every table.',
+      'Keep secrets and the service_role key out of the app and the repository.',
+      'Never trust the client for competition scores.',
+      'Handle content licences and the Google Play requirements before launch.',
+    ],
+    resourceIds: ['supabase-rls', 'supabase-auth', 'google-play-testing', 'expo-agents'],
+    lessons: [
+      {
+        title: 'Row Level Security on every table',
+        description:
+          'Turn on RLS for every table in the first migration. Content tables are read-only for users. Every migration that creates a table must also enable RLS and add its policies.',
+        objectives: [
+          'Enable RLS in the same migration that creates each table.',
+          'Make content tables read-only for users.',
+          'Write a policy that limits a user to their own rows.',
+        ],
+        resources: ['supabase-rls'],
+        exercises: ['Check: no table in your database has RLS switched off'],
+        difficulty: 'advanced',
+        minutes: 90,
+      },
+      {
+        title: 'Keys and secrets',
+        description:
+          'The service_role key bypasses RLS and must never ship in the app. Never place secrets in the repository or the app bundle.',
+        objectives: [
+          'Explain what the service_role key can do and why it stays server-side.',
+          'Search your repository and app bundle for secrets before every release.',
+        ],
+        resources: ['supabase-auth', 'expo-agents'],
+        exercises: ['Check: no secret or service_role key exists in the repo or the app bundle'],
+        difficulty: 'intermediate',
+        minutes: 45,
+      },
+      {
+        title: 'Do not trust the client (competition and cheating)',
+        description:
+          'Leagues and PvP get cheated and lost trust is hard to win back. Compute XP and league scores on the server from synced events, never from numbers sent by the client. This is why leagues wait until after validation.',
+        objectives: [
+          'Explain why a client-reported score cannot be trusted.',
+          'Describe how server-side scoring from synced review events works.',
+        ],
+        resources: ['supabase-rls'],
+        difficulty: 'advanced',
+        minutes: 45,
+      },
+      {
+        title: 'Content licences and attribution',
+        description:
+          'Words, audio and illustrations take longer than code, and some licences require attribution or share-alike terms. Start with 200 to 500 words and record each source and licence in the pack metadata.',
+        objectives: [
+          'Identify the licence of every word list, audio file and image you use.',
+          'Know the difference between attribution and share-alike terms.',
+          'Record source and licence in the pack metadata.',
+        ],
+        resources: [],
+        exercises: ['Check: every item in your first pack has a recorded source and licence'],
+        difficulty: 'intermediate',
+        minutes: 60,
+      },
+      {
+        title: 'Google Play testing requirements',
+        description:
+          'A personal developer account created after November 13, 2023 needs a closed test with 12 testers opted in for 14 continuous days before you can apply for production.',
+        objectives: [
+          'Know the 12-tester, 14-day rule.',
+          'Create the developer account and start recruiting testers during the build.',
+        ],
+        resources: ['google-play-testing'],
+        exercises: ['Check: developer account created and testers recruited'],
+        difficulty: 'beginner',
+        minutes: 45,
+      },
+      {
+        title: 'Personal or organization Play account',
+        description:
+          'Organization accounts fall outside the 12-tester rule but need business verification, including a D-U-N-S number. Decide before day one.',
+        objectives: [
+          'Compare a personal and an organization account.',
+          'Decide which one you will use, and why.',
+        ],
+        resources: ['google-play-testing'],
+        difficulty: 'beginner',
+        minutes: 30,
+      },
+      {
+        title: 'Guardrails for AI-assisted work (CLAUDE.md)',
+        description:
+          'A strict CLAUDE.md keeps Claude Code reliable and safe: exact stack versions, checks that must pass, no new dependencies without asking, and rules about secrets and RLS.',
+        objectives: [
+          'State the stack with exact versions, and require typecheck, lint and test to pass before a task counts as done.',
+          'Require npx expo install, no edits to generated native folders, and a question before adding any dependency.',
+          'Require a unit test for every rating-policy change, and RLS on every new table.',
+          'Work on one feature at a time and commit at each green milestone.',
+        ],
+        resources: ['expo-agents'],
+        exercises: ['Check: your project has a CLAUDE.md containing these rules'],
+        difficulty: 'intermediate',
+        minutes: 60,
+      },
+    ],
+  },
 ];
 
 export const curriculum: Phase[] = phaseInputs.map(buildPhase);
