@@ -1105,6 +1105,164 @@ const phaseInputs: PhaseInput[] = [
       },
     ],
   },
+  {
+    number: 11,
+    title: 'Privacy and GDPR',
+    duration: 'Ongoing, alongside Phases 9–10; finish before the closed test',
+    estimatedWeeks: 2,
+    ongoing: true,
+    practiceLabel: 'Deliverables',
+    description:
+      'What you must do to handle your learners\' personal data responsibly. GDPR applies whenever you have users in the EU, EEA or UK, wherever you are based. This is a learning guide, not legal advice: for anything high-stakes, especially if children will use Lyra, check with a qualified professional.',
+    objectives: [
+      'Know exactly what personal data Lyra collects, why, and where it is stored.',
+      'Choose a lawful basis for each purpose, and get consent where it is needed.',
+      'Publish an accurate privacy policy and match it in the store disclosures.',
+      'Build the features that let users access, export and delete their data.',
+    ],
+    resourceIds: ['ec-business-rules', 'ico-guide', 'gdpr-info', 'play-data-safety'],
+    lessons: [
+      {
+        title: 'What counts as personal data in Lyra',
+        description:
+          'Personal data is anything that relates to an identifiable person: an email address, a user id, a device id, and the review history tied to an account. Learn when GDPR applies to you and the difference between a controller (you) and a processor (Supabase, Expo, analytics tools).',
+        objectives: [
+          'List the personal data Lyra will hold.',
+          'Explain when GDPR applies, regardless of where you live.',
+          'Distinguish controller from processor.',
+        ],
+        resources: ['ec-business-rules', 'ico-guide'],
+        difficulty: 'beginner',
+        minutes: 60,
+      },
+      {
+        title: 'Data inventory and minimisation',
+        description:
+          'For every piece of data, write down why you need it, where it is stored (phone SQLite, Supabase, analytics) and how long you keep it. Collect only what you need, which is the single most effective privacy decision.',
+        objectives: [
+          'Create a data inventory: item, purpose, location, retention.',
+          'Remove anything you collect "just in case".',
+          'Understand data minimisation and storage limitation.',
+        ],
+        resources: ['gdpr-info', 'ico-guide'],
+        exercises: ['Deliverable: a data inventory table for Lyra'],
+        difficulty: 'intermediate',
+        minutes: 90,
+      },
+      {
+        title: 'Lawful bases and consent',
+        description:
+          'Every purpose needs one of six lawful bases. For Lyra, running the account and learning features is usually "contract", while non-essential analytics usually needs consent. Consent must be freely given, specific, informed, unambiguous and as easy to withdraw as to give.',
+        objectives: [
+          'Name the six lawful bases.',
+          'Pick a basis for each purpose in your inventory.',
+          'Know what valid consent requires, and when you do not need it.',
+        ],
+        resources: ['gdpr-info', 'ico-guide'],
+        exercises: ['Deliverable: a lawful basis chosen for every purpose in the inventory'],
+        difficulty: 'intermediate',
+        minutes: 90,
+      },
+      {
+        title: 'Writing the privacy policy',
+        description:
+          'Your policy must say who you are, what you collect, why, the lawful basis, who receives it, how long you keep it, whether it leaves the EEA, and what rights users have. Write it in plain language and make it match what the app really does.',
+        objectives: [
+          'Cover the required information (GDPR Article 13).',
+          'Write for learners, not lawyers.',
+          'Link the policy from the app, the sign-up screen and the store listing.',
+        ],
+        resources: ['gdpr-info', 'ico-guide'],
+        exercises: ['Deliverable: a first draft of the Lyra privacy policy'],
+        difficulty: 'intermediate',
+        minutes: 120,
+      },
+      {
+        title: 'Analytics and tracking consent',
+        description:
+          'The review defers PostHog until real testers exist. When you add it, do not collect non-essential analytics before the user opts in, make withdrawing easy, and prefer anonymous or minimal events. Test what is actually sent.',
+        objectives: [
+          'Decide which analytics are essential and which need consent.',
+          'Build an opt-in screen that works before any tracking starts.',
+          'Verify with a network inspector that nothing is sent before consent.',
+        ],
+        resources: ['ico-guide', 'gdpr-info'],
+        exercises: ['Deliverable: analytics stays off until the user opts in'],
+        difficulty: 'intermediate',
+        minutes: 90,
+      },
+      {
+        title: 'User rights: access, export and deletion',
+        description:
+          'Users can ask to see, correct, export and erase their data, and you generally have one month to respond. Build this into the app instead of handling emails by hand. Google Play and Apple also require that account deletion can be started inside the app.',
+        objectives: [
+          'List the main rights: access, rectification, erasure, portability, objection.',
+          'Build an in-app "Download my data" and "Delete my account".',
+          'Make deletion remove the user\'s review events and profile on the server.',
+        ],
+        resources: ['gdpr-info', 'play-account-deletion', 'supabase-auth'],
+        exercises: ['Deliverable: in-app data export and account deletion that really delete'],
+        difficulty: 'advanced',
+        minutes: 180,
+      },
+      {
+        title: 'Processors, contracts and data transfers',
+        description:
+          'Each service that handles user data for you (Supabase, Expo/EAS, analytics) is a processor and needs a data processing agreement. Check where data is stored, choose an EU region where you can, and understand the safeguards used when data leaves the EEA.',
+        objectives: [
+          'List every processor and what it receives.',
+          'Accept or sign the data processing agreement for each.',
+          'Choose the Supabase region deliberately.',
+        ],
+        resources: ['supabase-dpa', 'ec-business-rules'],
+        exercises: ['Deliverable: a processor list with a DPA and region noted for each'],
+        difficulty: 'intermediate',
+        minutes: 60,
+      },
+      {
+        title: 'Children and age limits',
+        description:
+          'Decide early who Lyra is for. Under GDPR, the age at which a child can consent for themselves is 16, and EU countries may lower it to as low as 13. In the US, COPPA covers children under 13. Apps aimed at children face much stricter rules, so most solo projects choose a clear minimum age.',
+        objectives: [
+          'Decide the minimum age for Lyra.',
+          'Understand why children\'s data gets extra protection.',
+          'Know when to get professional advice before targeting children.',
+        ],
+        resources: ['ico-guide', 'ftc-coppa'],
+        exercises: ['Deliverable: a written decision on minimum age and how you enforce it'],
+        difficulty: 'intermediate',
+        minutes: 60,
+      },
+      {
+        title: 'Security and breach response',
+        description:
+          'GDPR expects appropriate security, which connects directly to Phase 10: Row Level Security, no secrets in the app, and encryption in transit. If personal data is breached and it is likely to put people at risk, you must notify the regulator within 72 hours of becoming aware. Keep a short written incident plan.',
+        objectives: [
+          'Tie the Phase 10 security measures to your GDPR duties.',
+          'Know the 72-hour regulator notification rule.',
+          'Write a one-page incident plan: who, what, when, how to tell users.',
+        ],
+        resources: ['gdpr-info', 'ico-guide', 'supabase-rls'],
+        exercises: ['Deliverable: a one-page incident response plan'],
+        difficulty: 'intermediate',
+        minutes: 60,
+      },
+      {
+        title: 'Store disclosures and pre-launch checklist',
+        description:
+          'Google Play\'s Data safety form (and Apple\'s privacy labels, once you add iOS) must match what the app really does and what your privacy policy says. Do a final consistency check before the closed test, and get a professional review if anything is uncertain.',
+        objectives: [
+          'Fill in the Data safety form accurately from your data inventory.',
+          'Check the app, policy and store disclosures all agree.',
+          'Know when to ask a lawyer or data protection professional.',
+        ],
+        resources: ['play-data-safety', 'apple-privacy-details', 'google-play-testing'],
+        exercises: ['Deliverable: Data safety form completed and checked against the policy'],
+        difficulty: 'intermediate',
+        minutes: 90,
+      },
+    ],
+  },
 ];
 
 export const curriculum: Phase[] = phaseInputs.map(buildPhase);
