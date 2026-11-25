@@ -1,5 +1,5 @@
 import { getLesson } from '../data/curriculum';
-import type { AppState, Settings, StudySession } from '../types/state';
+import type { AppState, CheckpointProgress, Settings, StudySession } from '../types/state';
 import { createInitialState } from './validation';
 
 export type Action =
@@ -13,6 +13,9 @@ export type Action =
   | { type: 'setWeeklyGoal'; weekKey: string; text: string }
   | { type: 'updateSettings'; settings: Partial<Settings> }
   | { type: 'setAchievements'; achievements: Record<string, string> }
+  | { type: 'saveProblemCode'; phaseId: string; problemId: string; code: string }
+  | { type: 'markProblemPassed'; phaseId: string; problemId: string; code: string }
+  | { type: 'recordQuiz'; phaseId: string; score: number; passed: boolean }
   | { type: 'replaceState'; state: AppState }
   | { type: 'reset' };
 
@@ -21,6 +24,11 @@ function toggleKey(map: Record<string, string>, key: string): Record<string, str
   if (next[key]) delete next[key];
   else next[key] = new Date().toISOString();
   return next;
+}
+
+function withCheckpoint(state: AppState, phaseId: string, update: (cp: CheckpointProgress) => CheckpointProgress): AppState {
+  const current = state.checkpoints[phaseId] ?? { problems: {} };
+  return { ...state, checkpoints: { ...state.checkpoints, [phaseId]: update(current) } };
 }
 
 export function reducer(state: AppState, action: Action): AppState {
@@ -56,6 +64,31 @@ export function reducer(state: AppState, action: Action): AppState {
       return { ...state, settings: { ...state.settings, ...action.settings } };
     case 'setAchievements':
       return { ...state, achievements: action.achievements };
+    case 'saveProblemCode':
+      return withCheckpoint(state, action.phaseId, (cp) => ({
+        ...cp,
+        problems: { ...cp.problems, [action.problemId]: { ...cp.problems[action.problemId], code: action.code } },
+      }));
+    case 'markProblemPassed':
+      return withCheckpoint(state, action.phaseId, (cp) => {
+        const prev = cp.problems[action.problemId];
+        return {
+          ...cp,
+          problems: { ...cp.problems, [action.problemId]: { code: action.code, passedAt: prev?.passedAt ?? new Date().toISOString() } },
+        };
+      });
+    case 'recordQuiz':
+      return withCheckpoint(state, action.phaseId, (cp) => {
+        const prev = cp.quiz;
+        return {
+          ...cp,
+          quiz: {
+            bestScore: Math.max(prev?.bestScore ?? 0, action.score),
+            attempts: (prev?.attempts ?? 0) + 1,
+            passedAt: prev?.passedAt ?? (action.passed ? new Date().toISOString() : undefined),
+          },
+        };
+      });
     case 'replaceState':
       return action.state;
     case 'reset':

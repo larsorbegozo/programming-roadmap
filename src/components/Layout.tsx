@@ -17,7 +17,7 @@ const navItems: Array<{ name: NavName; label: string; short: string; icon: typeo
 ];
 
 function activeNav(route: Route): NavName {
-  return route.name === 'lesson' ? 'roadmap' : route.name;
+  return route.name === 'lesson' || route.name === 'checkpoint' ? 'roadmap' : route.name;
 }
 
 export function Layout({ route, children }: { route: Route; children: ReactNode }) {
@@ -58,7 +58,7 @@ export function Layout({ route, children }: { route: Route; children: ReactNode 
           </div>
           <ProgressBar value={overall.percent} className="mt-2" label="Overall progress" />
           <p className="mt-2 text-[12px] text-subtle">
-            {overall.completed} of {overall.total} lessons
+            {overall.lessonsCompleted} of {overall.lessonsTotal} lessons
           </p>
         </div>
       </aside>

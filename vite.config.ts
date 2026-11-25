@@ -6,4 +6,9 @@ import tailwindcss from '@tailwindcss/vite';
 export default defineConfig({
   base: './',
   plugins: [react(), tailwindcss()],
+  worker: { format: 'es' },
+  build: {
+    // The in-browser TypeScript compiler is large; it is only downloaded when a TypeScript problem runs.
+    chunkSizeWarningLimit: 4000,
+  },
 });

@@ -1,6 +1,7 @@
 import { Layout } from './components/Layout';
 import { AppStateProvider } from './hooks/useAppState';
 import { useHashRoute, type Route } from './hooks/useHashRoute';
+import { CheckpointPage } from './features/checkpoints/CheckpointPage';
 import { DashboardPage } from './features/dashboard/DashboardPage';
 import { LessonPage } from './features/lessons/LessonPage';
 import { PlannerPage } from './features/planner/PlannerPage';
@@ -18,6 +19,8 @@ function Page({ route }: { route: Route }) {
       return route.phaseId ? <PhaseDetailPage phaseId={route.phaseId} /> : <RoadmapPage />;
     case 'lesson':
       return <LessonPage lessonId={route.lessonId} />;
+    case 'checkpoint':
+      return <CheckpointPage key={route.phaseId} phaseId={route.phaseId} />;
     case 'resources':
       return <ResourcesPage />;
     case 'planner':

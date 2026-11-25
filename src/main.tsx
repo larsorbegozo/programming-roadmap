@@ -11,3 +11,9 @@ createRoot(root).render(
     <App />
   </StrictMode>,
 );
+
+if (import.meta.env.DEV) {
+  void import('./lib/runner/validate').then(({ validateAll }) => {
+    (window as unknown as { __lyraValidate: typeof validateAll }).__lyraValidate = validateAll;
+  });
+}

@@ -11,6 +11,26 @@ export interface StudySession {
   slotId?: string;
 }
 
+export interface ProblemProgress {
+  /** The learner's latest code. */
+  code: string;
+  /** Set the first time every test passed. */
+  passedAt?: string;
+}
+
+export interface QuizProgress {
+  /** Best score so far, 0–100. */
+  bestScore: number;
+  attempts: number;
+  /** Set the first time the score reached the pass mark. */
+  passedAt?: string;
+}
+
+export interface CheckpointProgress {
+  quiz?: QuizProgress;
+  problems: Record<string, ProblemProgress>;
+}
+
 export interface Settings {
   weeklyHoursTarget: number;
 }
@@ -30,5 +50,7 @@ export interface AppState {
   currentPhaseId: string | null;
   /** milestoneId -> ISO timestamp when first reached. */
   achievements: Record<string, string>;
+  /** phaseId -> checkpoint progress. */
+  checkpoints: Record<string, CheckpointProgress>;
   settings: Settings;
 }

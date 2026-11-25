@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react';
-import { ArrowRight, ChevronDown, Clock, SearchX } from 'lucide-react';
+import { ArrowRight, Award, ChevronDown, Clock, SearchX } from 'lucide-react';
 import { SearchInput } from '../../components/SearchInput';
 import { cx, EmptyState, PageHeader, ProgressBar, SegmentedControl } from '../../components/ui';
 import { curriculum } from '../../data/curriculum';
 import { useAppState } from '../../hooks/useAppState';
 import { phaseHref } from '../../hooks/useHashRoute';
-import { getCurrentPhase, getNextLesson, getPhaseProgress, isLessonComplete } from '../../lib/progress';
+import { getCurrentPhase, getNextLesson, getNextStep, getPhaseProgress, isLessonComplete } from '../../lib/progress';
 import type { Lesson } from '../../types/curriculum';
+import { CheckpointRow } from '../checkpoints/CheckpointRow';
 import { LessonRow } from './LessonRow';
 import { PhaseStatusBadge } from './PhaseStatus';
 
@@ -22,6 +23,7 @@ export function RoadmapPage() {
   const { state } = useAppState();
   const currentPhase = getCurrentPhase(state);
   const nextLesson = getNextLesson(state);
+  const step = getNextStep(state);
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set([currentPhase.id]));
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState<StatusFilter>('all');
@@ -117,9 +119,14 @@ export function RoadmapPage() {
                       <span className="font-medium text-fg">{phase.title}</span>
                       <PhaseStatusBadge status={progress.status} />
                     </span>
-                    <span className="mt-1 flex items-center gap-1.5 text-[12px] text-subtle">
+                    <span className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[12px] text-subtle">
                       <Clock className="size-3" />
-                      {phase.duration} · {progress.completed}/{progress.total} lessons
+                      {phase.duration} · {progress.lessonsCompleted}/{progress.lessonsTotal} lessons
+                      {progress.hasCheckpoint && (
+                        <span className={cx('inline-flex items-center gap-1', progress.checkpointPassed && 'text-success')}>
+                          · <Award className="size-3" /> checkpoint {progress.checkpointPassed ? 'passed' : 'pending'}
+                        </span>
+                      )}
                     </span>
                     <span className="mt-3 flex items-center gap-3">
                       <ProgressBar value={progress.percent} tone={progress.status === 'completed' ? 'success' : 'accent'} label={`Phase ${phase.number} progress`} />
@@ -151,8 +158,9 @@ export function RoadmapPage() {
                     )}
                     <ul className={cx('divide-y divide-line', !filtering && 'border-t border-line')}>
                       {lessons.map((lesson) => (
-                        <LessonRow key={lesson.id} lesson={lesson} isNext={lesson.id === nextLesson?.id} />
+                        <LessonRow key={lesson.id} lesson={lesson} isNext={lesson.id === nextLesson?.id && step?.kind === 'lesson'} />
                       ))}
+                      {!filtering && <CheckpointRow phase={phase} isNext={step?.kind === 'checkpoint' && step.phase.id === phase.id} />}
                     </ul>
                   </div>
                 )}

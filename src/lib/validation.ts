@@ -1,11 +1,13 @@
 import { allExerciseIds, allLessons, curriculum } from '../data/curriculum';
+import { checkpoints as checkpointDefs } from '../data/checkpoints';
 import { allMilestones } from '../data/milestones';
-import type { AppState, StudyCategory, StudySession } from '../types/state';
+import type { AppState, CheckpointProgress, StudyCategory, StudySession } from '../types/state';
 import { isValidDateKey } from './dates';
 
 export const MIN_WEEKLY_HOURS = 1;
 export const MAX_WEEKLY_HOURS = 40;
 export const MAX_SESSION_MINUTES = 16 * 60;
+export const MAX_CODE_LENGTH = 50_000;
 
 export function createInitialState(): AppState {
   return {
@@ -18,6 +20,7 @@ export function createInitialState(): AppState {
     lastViewedLessonId: null,
     currentPhaseId: null,
     achievements: {},
+    checkpoints: {},
     settings: { weeklyHoursTarget: 10 },
   };
 }
@@ -95,6 +98,66 @@ function validateSession(value: unknown, index: number, errors: string[]): Study
   return session;
 }
 
+function validateCheckpoints(value: unknown, errors: string[], warnings: string[]): Record<string, CheckpointProgress> {
+  const result: Record<string, CheckpointProgress> = {};
+  if (value === undefined) return result;
+  if (!isRecord(value)) {
+    errors.push('"checkpoints" must be an object.');
+    return result;
+  }
+  let unknown = 0;
+  for (const [phaseId, raw] of Object.entries(value)) {
+    const def = checkpointDefs[phaseId];
+    if (!def) {
+      unknown++;
+      continue;
+    }
+    const where = `checkpoints.${phaseId}`;
+    if (!isRecord(raw)) {
+      errors.push(`"${where}" must be an object.`);
+      continue;
+    }
+    const cp: CheckpointProgress = { problems: {} };
+    if (raw.quiz !== undefined) {
+      const q = raw.quiz;
+      if (
+        !isRecord(q) ||
+        typeof q.bestScore !== 'number' ||
+        q.bestScore < 0 ||
+        q.bestScore > 100 ||
+        typeof q.attempts !== 'number' ||
+        !Number.isInteger(q.attempts) ||
+        q.attempts < 0 ||
+        (q.passedAt !== undefined && !isIsoDate(q.passedAt))
+      ) {
+        errors.push(`"${where}.quiz" is invalid.`);
+      } else {
+        cp.quiz = { bestScore: q.bestScore, attempts: q.attempts, ...(q.passedAt ? { passedAt: q.passedAt as string } : {}) };
+      }
+    }
+    if (raw.problems !== undefined) {
+      if (!isRecord(raw.problems)) errors.push(`"${where}.problems" must be an object.`);
+      else {
+        const known = new Set(def.problems.map((p) => p.id));
+        for (const [problemId, pr] of Object.entries(raw.problems)) {
+          if (!known.has(problemId)) {
+            unknown++;
+            continue;
+          }
+          if (!isRecord(pr) || typeof pr.code !== 'string' || pr.code.length > MAX_CODE_LENGTH || (pr.passedAt !== undefined && !isIsoDate(pr.passedAt))) {
+            errors.push(`"${where}.problems.${problemId}" is invalid.`);
+            continue;
+          }
+          cp.problems[problemId] = { code: pr.code, ...(pr.passedAt ? { passedAt: pr.passedAt as string } : {}) };
+        }
+      }
+    }
+    result[phaseId] = cp;
+  }
+  if (unknown > 0) warnings.push(`Ignored ${unknown} unknown checkpoint entr${unknown === 1 ? 'y' : 'ies'}.`);
+  return result;
+}
+
 /**
  * Validates unknown data (from localStorage or an imported file) and returns a clean AppState.
  * Missing optional sections fall back to defaults; malformed sections are reported as errors.
@@ -115,6 +178,7 @@ export function validateState(input: unknown): ValidationResult {
   state.completedLessons = validateDateMap(raw.completedLessons, 'completedLessons', lessonIds, errors, warnings);
   state.completedExercises = validateDateMap(raw.completedExercises, 'completedExercises', exerciseIds, errors, warnings);
   state.achievements = validateDateMap(raw.achievements, 'achievements', milestoneIds, errors, warnings);
+  state.checkpoints = validateCheckpoints(raw.checkpoints, errors, warnings);
 
   if (raw.notes !== undefined) {
     if (!isRecord(raw.notes)) errors.push('"notes" must be an object.');

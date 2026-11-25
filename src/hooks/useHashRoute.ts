@@ -4,6 +4,7 @@ export type Route =
   | { name: 'dashboard' }
   | { name: 'roadmap'; phaseId?: string }
   | { name: 'lesson'; lessonId: string }
+  | { name: 'checkpoint'; phaseId: string }
   | { name: 'resources' }
   | { name: 'planner' }
   | { name: 'progress' }
@@ -17,6 +18,8 @@ export function parseHash(hash: string): Route {
       return second ? { name: 'roadmap', phaseId: second } : { name: 'roadmap' };
     case 'lesson':
       return second ? { name: 'lesson', lessonId: second } : { name: 'roadmap' };
+    case 'checkpoint':
+      return second ? { name: 'checkpoint', phaseId: second } : { name: 'roadmap' };
     case 'resources':
     case 'planner':
     case 'progress':
@@ -35,6 +38,8 @@ export function routeHref(route: Route): string {
       return route.phaseId ? `#/roadmap/${route.phaseId}` : '#/roadmap';
     case 'lesson':
       return `#/lesson/${route.lessonId}`;
+    case 'checkpoint':
+      return `#/checkpoint/${route.phaseId}`;
     default:
       return `#/${route.name}`;
   }
@@ -42,6 +47,7 @@ export function routeHref(route: Route): string {
 
 export const lessonHref = (lessonId: string) => routeHref({ name: 'lesson', lessonId });
 export const phaseHref = (phaseId: string) => routeHref({ name: 'roadmap', phaseId });
+export const checkpointHref = (phaseId: string) => routeHref({ name: 'checkpoint', phaseId });
 
 export function useHashRoute(): Route {
   const [route, setRoute] = useState<Route>(() => parseHash(window.location.hash));

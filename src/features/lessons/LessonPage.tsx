@@ -1,13 +1,13 @@
 import { useEffect } from 'react';
-import { ArrowLeft, ArrowRight, CheckCircle2, Clock, Info, Target } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Award, CheckCircle2, Clock, Info, Target } from 'lucide-react';
 import { ResourceLink } from '../../components/ResourceLink';
 import { Button, Checkbox, EmptyState, Panel, SectionTitle, buttonClass, cx, DifficultyBadge } from '../../components/ui';
 import { allLessons, getLesson, getPhase } from '../../data/curriculum';
 import { getResource } from '../../data/resources';
 import { useAppState } from '../../hooks/useAppState';
-import { lessonHref, phaseHref } from '../../hooks/useHashRoute';
+import { checkpointHref, lessonHref, phaseHref } from '../../hooks/useHashRoute';
 import { formatDate, formatMinutes } from '../../lib/dates';
-import { getNextLesson } from '../../lib/progress';
+import { getCheckpointStatus, getNextStep } from '../../lib/progress';
 import type { Resource } from '../../types/curriculum';
 import { NotesEditor } from './NotesEditor';
 
@@ -40,8 +40,16 @@ export function LessonPage({ lessonId }: { lessonId: string }) {
   const completedAt = state.completedLessons[lesson.id];
   const done = Boolean(completedAt);
   const resources = lesson.resourceIds.map(getResource).filter((r): r is Resource => Boolean(r));
-  const recommended = getNextLesson(state);
-  const skippedAhead = recommended && allLessons.findIndex((l) => l.id === recommended.id) < index && !done;
+  const step = getNextStep(state);
+  const stepIndex = !step
+    ? Infinity
+    : step.kind === 'lesson'
+      ? allLessons.findIndex((l) => l.id === step.lesson.id)
+      : allLessons.findIndex((l) => l.id === step.phase.lessons[step.phase.lessons.length - 1]?.id) + 0.5;
+  const skippedAhead = step !== null && stepIndex < index && !done;
+  const isLastInPhase = phase ? lesson.number === phase.lessons.length : false;
+  const checkpoint = phase ? getCheckpointStatus(state, phase.id) : null;
+  const checkpointNext = isLastInPhase && checkpoint?.exists && !checkpoint.passed && phase;
   const exercisesDone = lesson.exercises.filter((e) => state.completedExercises[e.id]).length;
 
   const toggle = () => dispatch({ type: 'toggleLesson', lessonId: lesson.id });
@@ -79,16 +87,26 @@ export function LessonPage({ lessonId }: { lessonId: string }) {
         <p className="mt-4 max-w-2xl text-[15px] text-muted">{lesson.description}</p>
       </header>
 
-      {skippedAhead && recommended && (
+      {skippedAhead && step && (
         <div className="mb-6 flex items-start gap-3 rounded-lg border border-line bg-surface px-4 py-3 text-[13px] text-muted">
           <Info className="mt-0.5 size-4 shrink-0 text-accent" />
-          <span>
-            You're ahead of the recommended order. The next lesson in sequence is{' '}
-            <a href={lessonHref(recommended.id)} className="text-accent hover:text-accent-strong">
-              {recommended.title}
-            </a>
-            . You can still continue here.
-          </span>
+          {step.kind === 'lesson' ? (
+            <span>
+              You're ahead of the recommended order. The next lesson in sequence is{' '}
+              <a href={lessonHref(step.lesson.id)} className="text-accent hover:text-accent-strong">
+                {step.lesson.title}
+              </a>
+              . You can still continue here.
+            </span>
+          ) : (
+            <span>
+              You haven't passed the{' '}
+              <a href={checkpointHref(step.phase.id)} className="text-accent hover:text-accent-strong">
+                Phase {step.phase.number} checkpoint
+              </a>{' '}
+              yet. It's the recommended next step, but you can still continue here.
+            </span>
+          )}
         </div>
       )}
 
@@ -162,10 +180,17 @@ export function LessonPage({ lessonId }: { lessonId: string }) {
                 </>
               )}
             </Button>
-            {done && next && (
-              <a href={lessonHref(next.id)} className={`${buttonClass('primary')} mt-2 w-full`}>
-                Next lesson <ArrowRight className="size-4" />
+            {done && checkpointNext ? (
+              <a href={checkpointHref(checkpointNext.id)} className={`${buttonClass('primary')} mt-2 w-full`}>
+                <Award className="size-4" /> Take the checkpoint
               </a>
+            ) : (
+              done &&
+              next && (
+                <a href={lessonHref(next.id)} className={`${buttonClass('primary')} mt-2 w-full`}>
+                  Next lesson <ArrowRight className="size-4" />
+                </a>
+              )
             )}
           </Panel>
         </aside>
@@ -182,7 +207,14 @@ export function LessonPage({ lessonId }: { lessonId: string }) {
         ) : (
           <span />
         )}
-        {next && (
+        {isLastInPhase && phase && checkpoint?.exists ? (
+          <a href={checkpointHref(phase.id)} className="group min-w-0 rounded-lg p-2 -m-2 text-right hover:bg-surface">
+            <span className="flex items-center justify-end gap-1 text-subtle">
+              Next <ArrowRight className="size-3.5" />
+            </span>
+            <span className="mt-0.5 block truncate text-muted group-hover:text-fg">Phase {phase.number} checkpoint</span>
+          </a>
+        ) : next && (
           <a href={lessonHref(next.id)} className="group min-w-0 rounded-lg p-2 -m-2 text-right hover:bg-surface">
             <span className="flex items-center justify-end gap-1 text-subtle">
               Next <ArrowRight className="size-3.5" />

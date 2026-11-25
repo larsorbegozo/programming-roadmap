@@ -4,9 +4,10 @@ import { Checkbox, EmptyState, Panel, ProgressRing, SectionTitle, buttonClass } 
 import { curriculum, getPhase } from '../../data/curriculum';
 import { getResource } from '../../data/resources';
 import { useAppState } from '../../hooks/useAppState';
-import { lessonHref, phaseHref } from '../../hooks/useHashRoute';
-import { getNextLesson, getPhaseProgress } from '../../lib/progress';
+import { checkpointHref, lessonHref, phaseHref } from '../../hooks/useHashRoute';
+import { getNextLesson, getNextStep, getPhaseProgress } from '../../lib/progress';
 import type { Resource } from '../../types/curriculum';
+import { CheckpointRow } from '../checkpoints/CheckpointRow';
 import { LessonRow } from './LessonRow';
 import { PhaseStatusBadge } from './PhaseStatus';
 
@@ -31,6 +32,8 @@ export function PhaseDetailPage({ phaseId }: { phaseId: string }) {
   const progress = getPhaseProgress(state, phase);
   const next = getNextLesson(state);
   const nextInPhase = phase.lessons.find((l) => !state.completedLessons[l.id]);
+  const step = getNextStep(state);
+  const checkpointIsNext = step?.kind === 'checkpoint' && step.phase.id === phase.id;
   const resources = phase.resourceIds.map(getResource).filter((r): r is Resource => Boolean(r));
   const exercises = phase.lessons.flatMap((l) => l.exercises.map((e) => ({ ...e, lesson: l })));
   const prev = curriculum[phase.number - 1];
@@ -53,17 +56,24 @@ export function PhaseDetailPage({ phaseId }: { phaseId: string }) {
             <PhaseStatusBadge status={progress.status} />
           </div>
           <p className="mt-4 max-w-2xl text-muted">{phase.description}</p>
-          {nextInPhase && (
+          {nextInPhase ? (
             <a href={lessonHref(nextInPhase.id)} className={`${buttonClass('primary')} mt-5`}>
-              {progress.completed === 0 ? 'Start phase' : 'Continue phase'} <ArrowRight className="size-4" />
+              {progress.lessonsCompleted === 0 ? 'Start phase' : 'Continue phase'} <ArrowRight className="size-4" />
             </a>
+          ) : (
+            progress.hasCheckpoint &&
+            !progress.checkpointPassed && (
+              <a href={checkpointHref(phase.id)} className={`${buttonClass('primary')} mt-5`}>
+                Take the checkpoint <ArrowRight className="size-4" />
+              </a>
+            )
           )}
         </div>
         <ProgressRing value={progress.percent} size={112}>
           <div>
             <div className="text-xl font-semibold tabular-nums">{progress.percent}%</div>
             <div className="text-[11px] text-subtle">
-              {progress.completed}/{progress.total}
+              {progress.lessonsCompleted}/{progress.lessonsTotal} lessons
             </div>
           </div>
         </ProgressRing>
@@ -76,8 +86,9 @@ export function PhaseDetailPage({ phaseId }: { phaseId: string }) {
             <Panel className="overflow-hidden">
               <ul className="divide-y divide-line">
                 {phase.lessons.map((l) => (
-                  <LessonRow key={l.id} lesson={l} isNext={l.id === next?.id} />
+                  <LessonRow key={l.id} lesson={l} isNext={l.id === next?.id && step?.kind === 'lesson'} />
                 ))}
+                <CheckpointRow phase={phase} isNext={checkpointIsNext} />
               </ul>
             </Panel>
           </div>

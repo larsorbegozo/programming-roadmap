@@ -1,5 +1,6 @@
-import { Award, BookCheck, CheckCircle2, Clock, Dumbbell, Flame, Layers, Lock } from 'lucide-react';
+import { Award, BookCheck, CheckCircle2, Clock, Code2, Dumbbell, Flame, Layers, Lock } from 'lucide-react';
 import { cx, Panel, PageHeader, ProgressBar, SectionTitle, StatTile } from '../../components/ui';
+import { checkpoints } from '../../data/checkpoints';
 import { allExerciseIds } from '../../data/curriculum';
 import { habitMilestones, phaseMilestones, type MilestoneDefinition } from '../../data/milestones';
 import { useAppState } from '../../hooks/useAppState';
@@ -17,6 +18,8 @@ export function ProgressPage() {
   const minutes = totalMinutes(state.sessions);
   const exercisesDone = allExerciseIds.filter((id) => state.completedExercises[id]).length;
   const target = state.settings.weeklyHoursTarget * 60;
+  const allProblems = Object.values(checkpoints).flatMap((c) => c.problems.map((p) => ({ phaseId: c.phaseId, id: p.id })));
+  const problemsSolved = allProblems.filter((p) => state.checkpoints[p.phaseId]?.problems[p.id]?.passedAt).length;
 
   const thisWeek = weekStartKey(todayKey());
   const weeks = Array.from({ length: WEEKS_SHOWN }, (_, i) => {
@@ -29,10 +32,12 @@ export function ProgressPage() {
     <>
       <PageHeader title="Progress" description="A clear view of how far you have come." />
 
-      <div className="mb-8 grid grid-cols-2 gap-3 lg:grid-cols-3">
-        <StatTile icon={<Layers className="size-3.5" />} label="Overall completion" value={`${overall.percent}%`} hint={`${overall.completed} of ${overall.total} lessons`} />
-        <StatTile icon={<BookCheck className="size-3.5" />} label="Completed lessons" value={overall.completed} hint={`${overall.total - overall.completed} to go`} />
-        <StatTile icon={<CheckCircle2 className="size-3.5" />} label="Completed phases" value={`${phasesDone} / ${phases.length}`} />
+      <div className="mb-8 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <StatTile icon={<Layers className="size-3.5" />} label="Overall completion" value={`${overall.percent}%`} hint={`${overall.lessonsCompleted} of ${overall.lessonsTotal} lessons`} />
+        <StatTile icon={<BookCheck className="size-3.5" />} label="Completed lessons" value={overall.lessonsCompleted} hint={`${overall.lessonsTotal - overall.lessonsCompleted} to go`} />
+        <StatTile icon={<Award className="size-3.5" />} label="Checkpoints passed" value={`${overall.checkpointsPassed} / ${overall.checkpointsTotal}`} />
+        <StatTile icon={<CheckCircle2 className="size-3.5" />} label="Completed phases" value={`${phasesDone} / ${phases.length}`} hint="Lessons + checkpoint" />
+        <StatTile icon={<Code2 className="size-3.5" />} label="Coding problems solved" value={`${problemsSolved} / ${allProblems.length}`} />
         <StatTile icon={<Clock className="size-3.5" />} label="Study hours" value={formatMinutes(minutes)} hint={`${state.sessions.length} sessions logged`} />
         <StatTile icon={<Flame className="size-3.5" />} label="Current streak" value={`${currentStreak(state)}d`} hint={`Longest: ${longestStreak(state)} days`} />
         <StatTile icon={<Dumbbell className="size-3.5" />} label="Exercises done" value={`${exercisesDone} / ${allExerciseIds.length}`} />
@@ -42,15 +47,18 @@ export function ProgressPage() {
         <section>
           <SectionTitle>Phase completion</SectionTitle>
           <Panel className="flex flex-col gap-4 p-5">
-            {phases.map(({ phase, percent, completed, total, status }) => (
+            {phases.map(({ phase, percent, lessonsCompleted, lessonsTotal, checkpointPassed, hasCheckpoint, status }) => (
               <a key={phase.id} href={phaseHref(phase.id)} className="group block">
                 <div className="mb-1.5 flex items-baseline justify-between gap-3 text-[13px]">
                   <span className="truncate text-muted group-hover:text-fg">
                     <span className="text-subtle">{phase.number} · </span>
                     {phase.title}
                   </span>
-                  <span className="shrink-0 tabular-nums text-subtle">
-                    {completed}/{total}
+                  <span className="flex shrink-0 items-center gap-1.5 tabular-nums text-subtle">
+                    {lessonsCompleted}/{lessonsTotal}
+                    {hasCheckpoint && (
+                      <Award className={cx('size-3.5', checkpointPassed ? 'text-success' : 'text-line-strong')} aria-label={checkpointPassed ? 'Checkpoint passed' : 'Checkpoint not passed'} />
+                    )}
                   </span>
                 </div>
                 <ProgressBar value={percent} tone={status === 'completed' ? 'success' : 'accent'} label={`${phase.title} progress`} />

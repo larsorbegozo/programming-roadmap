@@ -1,3 +1,4 @@
+import { getCheckpoint } from '../data/checkpoints';
 import { allLessons, curriculum } from '../data/curriculum';
 import { allMilestones, type MilestoneDefinition } from '../data/milestones';
 import type { Lesson, Phase } from '../types/curriculum';
@@ -13,19 +14,73 @@ export function isLessonComplete(state: AppState, lessonId: string): boolean {
   return Boolean(state.completedLessons[lessonId]);
 }
 
+/** Minimum quiz score (percent) needed to pass a checkpoint's questions. */
+export const QUIZ_PASS_PERCENT = 80;
+
+export interface CheckpointStatus {
+  exists: boolean;
+  questionsTotal: number;
+  problemsTotal: number;
+  problemsPassed: number;
+  quizPassed: boolean;
+  bestScore: number | null;
+  started: boolean;
+  passed: boolean;
+}
+
+export function getCheckpointStatus(state: AppState, phaseId: string): CheckpointStatus {
+  const def = getCheckpoint(phaseId);
+  if (!def) {
+    return { exists: false, questionsTotal: 0, problemsTotal: 0, problemsPassed: 0, quizPassed: true, bestScore: null, started: false, passed: true };
+  }
+  const cp = state.checkpoints[phaseId];
+  const quizPassed = def.questions.length === 0 || Boolean(cp?.quiz?.passedAt);
+  const problemsPassed = def.problems.filter((p) => cp?.problems[p.id]?.passedAt).length;
+  return {
+    exists: true,
+    questionsTotal: def.questions.length,
+    problemsTotal: def.problems.length,
+    problemsPassed,
+    quizPassed,
+    bestScore: cp?.quiz ? cp.quiz.bestScore : null,
+    started: Boolean(cp && (cp.quiz || Object.keys(cp.problems).length > 0)),
+    passed: quizPassed && problemsPassed === def.problems.length,
+  };
+}
+
+export function isCheckpointPassed(state: AppState, phaseId: string): boolean {
+  return getCheckpointStatus(state, phaseId).passed;
+}
+
 export interface PhaseProgress {
   phase: Phase;
-  completed: number;
-  total: number;
+  lessonsCompleted: number;
+  lessonsTotal: number;
+  hasCheckpoint: boolean;
+  checkpointPassed: boolean;
+  /** Lessons plus the checkpoint, as one percentage. */
   percent: number;
   status: 'not-started' | 'in-progress' | 'completed';
 }
 
+/** A phase is complete only when every lesson is done AND its checkpoint is passed. */
 export function getPhaseProgress(state: AppState, phase: Phase): PhaseProgress {
-  const total = phase.lessons.length;
-  const completed = phase.lessons.filter((l) => isLessonComplete(state, l.id)).length;
-  const status = completed === 0 ? 'not-started' : completed === total ? 'completed' : 'in-progress';
-  return { phase, completed, total, percent: percent(completed, total), status };
+  const lessonsTotal = phase.lessons.length;
+  const lessonsCompleted = phase.lessons.filter((l) => isLessonComplete(state, l.id)).length;
+  const checkpoint = getCheckpointStatus(state, phase.id);
+  const units = lessonsTotal + (checkpoint.exists ? 1 : 0);
+  const done = lessonsCompleted + (checkpoint.exists && checkpoint.passed ? 1 : 0);
+  const status =
+    done === units ? 'completed' : lessonsCompleted === 0 && !checkpoint.started && !(checkpoint.exists && checkpoint.passed) ? 'not-started' : 'in-progress';
+  return {
+    phase,
+    lessonsCompleted,
+    lessonsTotal,
+    hasCheckpoint: checkpoint.exists,
+    checkpointPassed: checkpoint.exists && checkpoint.passed,
+    percent: percent(done, units),
+    status,
+  };
 }
 
 export function getAllPhaseProgress(state: AppState): PhaseProgress[] {
@@ -33,22 +88,40 @@ export function getAllPhaseProgress(state: AppState): PhaseProgress[] {
 }
 
 export function getOverallProgress(state: AppState) {
-  const total = allLessons.length;
-  const completed = allLessons.filter((l) => isLessonComplete(state, l.id)).length;
-  return { completed, total, percent: percent(completed, total) };
+  const lessonsTotal = allLessons.length;
+  const lessonsCompleted = allLessons.filter((l) => isLessonComplete(state, l.id)).length;
+  const withCheckpoint = curriculum.filter((p) => getCheckpoint(p.id));
+  const checkpointsTotal = withCheckpoint.length;
+  const checkpointsPassed = withCheckpoint.filter((p) => isCheckpointPassed(state, p.id)).length;
+  return {
+    lessonsCompleted,
+    lessonsTotal,
+    checkpointsPassed,
+    checkpointsTotal,
+    percent: percent(lessonsCompleted + checkpointsPassed, lessonsTotal + checkpointsTotal),
+  };
 }
 
-/** The first incomplete lesson in roadmap order, or null when everything is done. */
+/** The first incomplete lesson in roadmap order, or null when every lesson is done. */
 export function getNextLesson(state: AppState): Lesson | null {
   return allLessons.find((l) => !isLessonComplete(state, l.id)) ?? null;
 }
 
-/** Current phase = phase of the next lesson; falls back to the last phase when all done. */
+export type NextStep = { kind: 'lesson'; lesson: Lesson; phase: Phase } | { kind: 'checkpoint'; phase: Phase };
+
+/** The recommended next thing to do: the next lesson, or a phase checkpoint once its lessons are done. */
+export function getNextStep(state: AppState): NextStep | null {
+  for (const phase of curriculum) {
+    const lesson = phase.lessons.find((l) => !isLessonComplete(state, l.id));
+    if (lesson) return { kind: 'lesson', lesson, phase };
+    if (!isCheckpointPassed(state, phase.id)) return { kind: 'checkpoint', phase };
+  }
+  return null;
+}
+
+/** Current phase = phase of the next step; falls back to the last phase when all done. */
 export function getCurrentPhase(state: AppState): Phase {
-  const next = getNextLesson(state);
-  const last = curriculum[curriculum.length - 1] as Phase;
-  if (!next) return last;
-  return curriculum.find((p) => p.id === next.phaseId) ?? last;
+  return getNextStep(state)?.phase ?? (curriculum[curriculum.length - 1] as Phase);
 }
 
 /**
@@ -57,8 +130,7 @@ export function getCurrentPhase(state: AppState): Phase {
  */
 export function getRemainingWeeks(state: AppState): number {
   const base = curriculum.reduce((sum, phase) => {
-    const { completed, total } = getPhaseProgress(state, phase);
-    return sum + phase.estimatedWeeks * (total === 0 ? 0 : 1 - completed / total);
+    return sum + phase.estimatedWeeks * (1 - getPhaseProgress(state, phase).percent / 100);
   }, 0);
   const scale = 10 / Math.max(1, state.settings.weeklyHoursTarget);
   return base * scale;
@@ -185,9 +257,9 @@ export function isMilestoneMet(state: AppState, milestone: MilestoneDefinition):
   const hours = totalMinutes(state.sessions) / 60;
   switch (milestone.id) {
     case 'first-lesson':
-      return overall.completed >= 1;
+      return overall.lessonsCompleted >= 1;
     case 'ten-lessons':
-      return overall.completed >= 10;
+      return overall.lessonsCompleted >= 10;
     case 'halfway':
       return overall.percent >= 50;
     case 'hours-10':
@@ -220,12 +292,12 @@ export function sameKeys(a: Record<string, string>, b: Record<string, string>): 
   return ak.length === Object.keys(b).length && ak.every((k) => k in b);
 }
 
-/** Suggested weekly objective: the next few incomplete lessons. */
+/** Suggested weekly objective: the next few lessons, or the pending checkpoint. */
 export function suggestedWeeklyObjective(state: AppState): string {
-  const next = getNextLesson(state);
-  if (!next) return 'Keep building and polishing Lyra.';
-  const phase = curriculum.find((p) => p.id === next.phaseId);
-  if (!phase) return '';
+  const step = getNextStep(state);
+  if (!step) return 'Keep building and polishing Lyra.';
+  const phase = step.phase;
+  if (step.kind === 'checkpoint') return `Phase ${phase.number}: pass the checkpoint to complete ${phase.title}.`;
   const remaining = phase.lessons.filter((l) => !isLessonComplete(state, l.id));
   const lessonsPerWeek = Math.max(2, Math.round(phase.lessons.length / Math.max(1, phase.estimatedWeeks)));
   const batch = remaining.slice(0, lessonsPerWeek);
@@ -233,7 +305,8 @@ export function suggestedWeeklyObjective(state: AppState): string {
   const last = batch[batch.length - 1];
   if (!first || !last) return '';
   const range = first === last ? `lesson ${first.number}` : `lessons ${first.number}–${last.number}`;
-  return `Phase ${phase.number}: complete ${range} (${first.title}${first === last ? '' : ` → ${last.title}`}).`;
+  const finishesPhase = batch.length === remaining.length;
+  return `Phase ${phase.number}: complete ${range} (${first.title}${first === last ? '' : ` → ${last.title}`})${finishesPhase ? ', then pass the checkpoint' : ''}.`;
 }
 
 export function daysSince(dateKey: string): number {

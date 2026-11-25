@@ -1,15 +1,16 @@
-import { ArrowRight, CalendarCheck, CheckCircle2, Flag, Flame, History, Hourglass, PartyPopper } from 'lucide-react';
+import { ArrowRight, Award, CalendarCheck, CheckCircle2, Flag, Flame, History, Hourglass, PartyPopper } from 'lucide-react';
 import { cx, Panel, ProgressBar, ProgressRing, SectionTitle, StatTile, buttonClass } from '../../components/ui';
-import { curriculum, getLesson, getPhase } from '../../data/curriculum';
+import { curriculum, getLesson } from '../../data/curriculum';
 import { allMilestones } from '../../data/milestones';
 import { useAppState } from '../../hooks/useAppState';
-import { lessonHref, phaseHref } from '../../hooks/useHashRoute';
+import { checkpointHref, lessonHref, phaseHref } from '../../hooks/useHashRoute';
 import { formatMinutes, todayKey, weekStartKey } from '../../lib/dates';
 import {
   currentStreak,
   formatWeeks,
   getCurrentPhase,
-  getNextLesson,
+  getCheckpointStatus,
+  getNextStep,
   getOverallProgress,
   getPhaseProgress,
   getRemainingWeeks,
@@ -25,10 +26,12 @@ export function DashboardPage() {
   const overall = getOverallProgress(state);
   const phase = getCurrentPhase(state);
   const phaseProgress = getPhaseProgress(state, phase);
-  const next = getNextLesson(state);
-  const nextPhase = next ? getPhase(next.phaseId) : undefined;
+  const step = getNextStep(state);
+  const nextHref = step ? (step.kind === 'lesson' ? lessonHref(step.lesson.id) : checkpointHref(step.phase.id)) : null;
+  const nextLessonId = step?.kind === 'lesson' ? step.lesson.id : undefined;
   const lastViewed = state.lastViewedLessonId ? getLesson(state.lastViewedLessonId) : undefined;
-  const showResume = lastViewed && lastViewed.id !== next?.id && !state.completedLessons[lastViewed.id];
+  const showResume = lastViewed && lastViewed.id !== nextLessonId && !state.completedLessons[lastViewed.id];
+  const stepCheckpoint = step?.kind === 'checkpoint' ? getCheckpointStatus(state, step.phase.id) : null;
 
   const weekKey = weekStartKey(todayKey());
   const weekSessions = sessionsInWeek(state.sessions, weekKey);
@@ -45,12 +48,13 @@ export function DashboardPage() {
     <>
       <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-[13px] text-subtle">{overall.completed === 0 ? 'Welcome' : 'Welcome back'}</p>
+          <p className="text-[13px] text-subtle">{overall.lessonsCompleted === 0 ? 'Welcome' : 'Welcome back'}</p>
           <h1 className="mt-1 text-xl font-semibold tracking-tight sm:text-2xl">Your path to building Lyra</h1>
         </div>
-        {next ? (
-          <a href={lessonHref(next.id)} className={cx(buttonClass('primary'), 'h-10 px-5')}>
-            {overall.completed === 0 ? 'Start learning' : 'Continue learning'} <ArrowRight className="size-4" />
+        {step && nextHref ? (
+          <a href={nextHref} className={cx(buttonClass('primary'), 'h-10 px-5')}>
+            {overall.lessonsCompleted === 0 ? 'Start learning' : step.kind === 'checkpoint' ? 'Take the checkpoint' : 'Continue learning'}{' '}
+            <ArrowRight className="size-4" />
           </a>
         ) : (
           <a href="#/progress" className={buttonClass('secondary')}>
@@ -71,7 +75,7 @@ export function DashboardPage() {
           <div className="md:hidden">
             <p className="text-[12px] text-subtle">Lessons completed</p>
             <p className="text-lg font-semibold tabular-nums">
-              {overall.completed} <span className="text-muted">/ {overall.total}</span>
+              {overall.lessonsCompleted} <span className="text-muted">/ {overall.lessonsTotal}</span>
             </p>
           </div>
         </div>
@@ -84,30 +88,48 @@ export function DashboardPage() {
           <div className="mt-3 flex items-center gap-3">
             <ProgressBar value={phaseProgress.percent} label="Current phase progress" />
             <span className="shrink-0 text-[12px] tabular-nums text-muted">
-              {phaseProgress.completed}/{phaseProgress.total}
+              {phaseProgress.lessonsCompleted}/{phaseProgress.lessonsTotal}
             </span>
           </div>
-          <p className="mt-2 text-[12px] text-subtle">{phase.duration}</p>
+          <p className="mt-2 text-[12px] text-subtle">
+            {phase.duration}
+            {phaseProgress.hasCheckpoint && ` · checkpoint ${phaseProgress.checkpointPassed ? 'passed' : 'pending'}`}
+          </p>
         </div>
 
         <div className="min-w-0 md:border-l md:border-line md:pl-6">
-          {next && nextPhase ? (
+          {step?.kind === 'lesson' ? (
             <>
               <p className="text-[12px] text-subtle">Recommended next lesson</p>
-              <a href={lessonHref(next.id)} className="group mt-1 block">
-                <span className="block truncate font-medium group-hover:text-accent-strong">{next.title}</span>
-                <span className="mt-1 line-clamp-2 text-[13px] text-muted">{next.description}</span>
+              <a href={lessonHref(step.lesson.id)} className="group mt-1 block">
+                <span className="block truncate font-medium group-hover:text-accent-strong">{step.lesson.title}</span>
+                <span className="mt-1 line-clamp-2 text-[13px] text-muted">{step.lesson.description}</span>
               </a>
               <p className="mt-2 text-[12px] text-subtle">
-                Phase {nextPhase.number} · Lesson {next.number} · ~{formatMinutes(next.estimatedMinutes)}
+                Phase {step.phase.number} · Lesson {step.lesson.number} · ~{formatMinutes(step.lesson.estimatedMinutes)}
               </p>
+            </>
+          ) : step?.kind === 'checkpoint' ? (
+            <>
+              <p className="text-[12px] text-subtle">Recommended next step</p>
+              <a href={checkpointHref(step.phase.id)} className="group mt-1 flex items-center gap-2">
+                <Award className="size-4 shrink-0 text-accent" />
+                <span className="truncate font-medium group-hover:text-accent-strong">Phase {step.phase.number} checkpoint</span>
+              </a>
+              <p className="mt-1 text-[13px] text-muted">All lessons done. Prove you understand {step.phase.title} to complete the phase.</p>
+              {stepCheckpoint && (
+                <p className="mt-2 text-[12px] text-subtle">
+                  {stepCheckpoint.questionsTotal} questions
+                  {stepCheckpoint.problemsTotal > 0 && ` · ${stepCheckpoint.problemsPassed}/${stepCheckpoint.problemsTotal} coding problems solved`}
+                </p>
+              )}
             </>
           ) : (
             <div className="flex items-start gap-3">
               <PartyPopper className="mt-0.5 size-5 text-accent" />
               <div>
                 <p className="font-medium">Roadmap complete</p>
-                <p className="text-[13px] text-muted">Every lesson is done. Keep building Lyra.</p>
+                <p className="text-[13px] text-muted">Every lesson and checkpoint is done. Keep building Lyra.</p>
               </div>
             </div>
           )}
