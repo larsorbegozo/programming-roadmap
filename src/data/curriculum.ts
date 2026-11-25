@@ -1,0 +1,859 @@
+import type { Difficulty, Exercise, Lesson, Phase } from '../types/curriculum';
+
+interface LessonInput {
+  title: string;
+  description: string;
+  objectives: string[];
+  resources: string[];
+  exercises?: string[];
+  difficulty?: Difficulty;
+  minutes?: number;
+}
+
+interface PhaseInput extends Omit<Phase, 'lessons' | 'id' | 'practiceLabel'> {
+  practiceLabel?: string;
+  lessons: LessonInput[];
+}
+
+function slug(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 40);
+}
+
+function buildPhase(input: PhaseInput): Phase {
+  const id = `p${input.number}`;
+  const lessons: Lesson[] = input.lessons.map((l, index) => {
+    const lessonId = `${id}-l${index + 1}`;
+    const exercises: Exercise[] = (l.exercises ?? []).map((title) => ({
+      id: `${lessonId}-ex-${slug(title)}`,
+      title,
+    }));
+    return {
+      id: lessonId,
+      phaseId: id,
+      number: index + 1,
+      title: l.title,
+      description: l.description,
+      objectives: l.objectives,
+      resourceIds: l.resources,
+      exercises,
+      difficulty: l.difficulty ?? 'beginner',
+      estimatedMinutes: l.minutes ?? 60,
+    };
+  });
+  return { ...input, id, practiceLabel: input.practiceLabel ?? 'Practical exercises', lessons };
+}
+
+const phaseInputs: PhaseInput[] = [
+  {
+    number: 0,
+    title: 'Development Environment',
+    duration: '2–3 days',
+    estimatedWeeks: 0.5,
+    ongoing: false,
+    description:
+      'Set up your computer for development and learn the basic concepts every programmer relies on: editors, files, folders and the terminal.',
+    objectives: [
+      'Understand basic computer and programming concepts.',
+      'Learn how to use a code editor.',
+      'Understand files, folders, and the terminal.',
+      'Install the required development tools.',
+    ],
+    resourceIds: ['vscode', 'nodejs', 'git', 'github', 'mdn-getting-started'],
+    lessons: [
+      {
+        title: 'What is programming?',
+        description: 'What code is, how computers run it, and how a mobile app like Lyra is made of many small instructions.',
+        objectives: ['Explain what a program is in your own words.', 'Know the difference between source code and a running app.', 'Understand where JavaScript, TypeScript and React fit in.'],
+        resources: ['mdn-getting-started'],
+        minutes: 45,
+      },
+      {
+        title: 'Understanding code editors',
+        description: 'Why programmers use code editors instead of word processors, and what features matter most.',
+        objectives: ['Know what syntax highlighting, autocomplete and extensions do.', 'Understand the editor layout: explorer, editor, terminal.'],
+        resources: ['vscode-docs'],
+        minutes: 30,
+      },
+      {
+        title: 'Installing Visual Studio Code',
+        description: 'Install VS Code and configure it for comfortable everyday use.',
+        objectives: ['Install VS Code.', 'Open a folder as a project.', 'Install one or two essential extensions (e.g. Prettier, ESLint).'],
+        resources: ['vscode', 'vscode-docs'],
+        exercises: ['Create a folder called "learning" and open it in VS Code'],
+        minutes: 30,
+      },
+      {
+        title: 'Installing Node.js',
+        description: 'Install the Node.js LTS release, which gives you the node runtime and the npm package manager.',
+        objectives: ['Install Node.js LTS.', 'Verify the install with node -v and npm -v.', 'Run a one-line JavaScript file with node.'],
+        resources: ['nodejs'],
+        exercises: ['Create hello.js that prints a message and run it with node hello.js'],
+        minutes: 30,
+      },
+      {
+        title: 'Installing Git',
+        description: 'Install Git and set your name and email so your commits are attributed to you.',
+        objectives: ['Install Git.', 'Configure user.name and user.email.', 'Verify the install with git --version.'],
+        resources: ['git'],
+        minutes: 30,
+      },
+      {
+        title: 'Understanding the terminal',
+        description: 'The terminal lets you control your computer with text commands. Most developer tools are used from it.',
+        objectives: ['Open the terminal inside VS Code.', 'Understand commands, arguments and the current directory.', 'Read error messages without panicking.'],
+        resources: ['mdn-getting-started'],
+        minutes: 45,
+      },
+      {
+        title: 'Navigating directories and managing files',
+        description: 'Move around the file system and create, rename and delete files from the terminal.',
+        objectives: ['Use pwd, ls (or dir), cd, mkdir.', 'Understand absolute vs relative paths.', 'Create and remove files safely.'],
+        resources: ['mdn-getting-started'],
+        exercises: ['Create a projects folder with two sub-folders using only the terminal'],
+        minutes: 45,
+      },
+      {
+        title: 'Introduction to GitHub',
+        description: 'Create a GitHub account and understand how GitHub stores and shares Git repositories.',
+        objectives: ['Create a GitHub account.', 'Understand the difference between Git and GitHub.', 'Browse a public repository.'],
+        resources: ['github'],
+        exercises: ['Create your GitHub account and explore one open-source repository'],
+        minutes: 30,
+      },
+    ],
+  },
+  {
+    number: 1,
+    title: 'JavaScript Fundamentals',
+    duration: '2–3 weeks',
+    estimatedWeeks: 2.5,
+    ongoing: false,
+    description:
+      'Learn the core building blocks of JavaScript: values, logic, functions and data structures. Everything later in the roadmap is built on this.',
+    objectives: [
+      'Write small programs using variables, conditions, loops and functions.',
+      'Model real data with arrays and objects.',
+      'Transform data with array methods.',
+      'Understand scope and closures.',
+    ],
+    resourceIds: ['fcc-js', 'jsinfo'],
+    lessons: [
+      {
+        title: 'Variables: let and const',
+        description: 'Store values with names so your program can remember and reuse them.',
+        objectives: ['Declare variables with let and const.', 'Know when to use each.', 'Follow good naming conventions.'],
+        resources: ['fcc-js', 'jsinfo-variables'],
+      },
+      {
+        title: 'Data types',
+        description: 'Strings, numbers, booleans, null, undefined and how JavaScript treats each.',
+        objectives: ['Identify the primitive types.', 'Use typeof to inspect a value.', 'Understand null vs undefined.'],
+        resources: ['fcc-js', 'jsinfo-types'],
+      },
+      {
+        title: 'Operators',
+        description: 'Arithmetic, comparison and logical operators for computing and comparing values.',
+        objectives: ['Use arithmetic and assignment operators.', 'Compare with === and !==.', 'Combine conditions with &&, || and !.'],
+        resources: ['fcc-js', 'jsinfo-operators'],
+      },
+      {
+        title: 'Conditional statements',
+        description: 'Make decisions in code with if, else if, else and the ternary operator.',
+        objectives: ['Write if / else chains.', 'Use the ternary operator for simple choices.', 'Understand truthy and falsy values.'],
+        resources: ['fcc-js', 'jsinfo-ifelse'],
+      },
+      {
+        title: 'Functions',
+        description: 'Package logic into reusable, named blocks that take inputs and return outputs.',
+        objectives: ['Declare functions and arrow functions.', 'Use parameters and return values.', 'Break a problem into small functions.'],
+        resources: ['fcc-js', 'jsinfo-functions'],
+        minutes: 90,
+      },
+      {
+        title: 'Arrays',
+        description: 'Ordered lists of values, such as a list of vocabulary words.',
+        objectives: ['Create arrays and access items by index.', 'Add and remove items with push, pop, etc.', 'Get the length of an array.'],
+        resources: ['fcc-js', 'jsinfo-array'],
+        exercises: ['Build an array of vocabulary words'],
+        minutes: 90,
+      },
+      {
+        title: 'Objects',
+        description: 'Group related data under named keys, like a word, its translation and its category.',
+        objectives: ['Create objects with properties.', 'Read and update properties with dot and bracket notation.', 'Nest objects and arrays.'],
+        resources: ['fcc-js', 'jsinfo-object'],
+        exercises: ['Create a vocabulary object (word, translation, category, mastered)'],
+        minutes: 90,
+      },
+      {
+        title: 'Loops',
+        description: 'Repeat work with for, while and for...of loops.',
+        objectives: ['Write for and while loops.', 'Iterate arrays with for...of.', 'Avoid infinite loops.'],
+        resources: ['fcc-js', 'jsinfo-loops'],
+        exercises: ['Mark vocabulary items as mastered by looping over the array'],
+      },
+      {
+        title: 'Array methods: map, filter, find, reduce',
+        description: 'The modern, expressive way to transform and query arrays.',
+        objectives: ['Transform arrays with map.', 'Select items with filter and find.', 'Compute totals with reduce.'],
+        resources: ['jsinfo-array-methods', 'fcc-js'],
+        exercises: ['Filter vocabulary by category', 'Calculate the percentage of mastered words'],
+        difficulty: 'intermediate',
+        minutes: 120,
+      },
+      {
+        title: 'Scope and closures',
+        description: 'Where variables are visible, and how functions remember the variables around them.',
+        objectives: ['Explain block and function scope.', 'Describe what a closure is.', 'Recognise closures in everyday code.'],
+        resources: ['jsinfo-closure'],
+        difficulty: 'intermediate',
+        minutes: 90,
+      },
+    ],
+  },
+  {
+    number: 2,
+    title: 'Intermediate JavaScript',
+    duration: '1–2 weeks',
+    estimatedWeeks: 1.5,
+    ongoing: false,
+    description:
+      'Modern JavaScript features used in every React and React Native codebase: destructuring, modules, asynchronous code and talking to APIs.',
+    objectives: [
+      'Read and write modern JavaScript syntax confidently.',
+      'Organise code across multiple files.',
+      'Work with asynchronous operations and APIs.',
+      'Handle errors gracefully.',
+    ],
+    resourceIds: ['jsinfo'],
+    lessons: [
+      {
+        title: 'Destructuring',
+        description: 'Pull values out of arrays and objects into variables in a single line.',
+        objectives: ['Destructure objects and arrays.', 'Use default values.', 'Destructure function parameters.'],
+        resources: ['jsinfo-destructuring'],
+        difficulty: 'intermediate',
+      },
+      {
+        title: 'Spread operator',
+        description: 'Copy and combine arrays and objects without mutating the original.',
+        objectives: ['Copy arrays and objects with ...', 'Merge objects.', 'Understand rest parameters.'],
+        resources: ['jsinfo-spread'],
+        difficulty: 'intermediate',
+      },
+      {
+        title: 'Modules',
+        description: 'Why real applications split code across many files and how JavaScript modules work.',
+        objectives: ['Explain what a module is.', 'Understand module scope.'],
+        resources: ['jsinfo-modules'],
+        difficulty: 'intermediate',
+        minutes: 45,
+      },
+      {
+        title: 'Import and export',
+        description: 'Share functions and data between files with named and default exports.',
+        objectives: ['Use named exports and imports.', 'Use default exports.', 'Structure a small multi-file project.'],
+        resources: ['jsinfo-import-export'],
+        exercises: ['Organize vocabulary data across multiple files'],
+        difficulty: 'intermediate',
+      },
+      {
+        title: 'Promises',
+        description: 'Represent work that finishes later, such as loading data from the internet.',
+        objectives: ['Explain what a Promise represents.', 'Chain .then and .catch.', 'Understand pending, fulfilled and rejected states.'],
+        resources: ['jsinfo-promise'],
+        difficulty: 'intermediate',
+        minutes: 90,
+      },
+      {
+        title: 'Async and await',
+        description: 'Write asynchronous code that reads top to bottom.',
+        objectives: ['Write async functions.', 'Await promises.', 'Run operations in sequence vs in parallel.'],
+        resources: ['jsinfo-async'],
+        exercises: ['Handle asynchronous operations with async/await'],
+        difficulty: 'intermediate',
+        minutes: 90,
+      },
+      {
+        title: 'Try and catch',
+        description: 'Stop errors from crashing your program and respond to them instead.',
+        objectives: ['Wrap risky code in try / catch.', 'Use finally.', 'Combine try / catch with await.'],
+        resources: ['jsinfo-try-catch'],
+        difficulty: 'intermediate',
+      },
+      {
+        title: 'JSON',
+        description: 'The text format used to send and store data between apps and servers.',
+        objectives: ['Convert objects to JSON with JSON.stringify.', 'Parse JSON with JSON.parse.', 'Recognise valid JSON.'],
+        resources: ['jsinfo-json'],
+        minutes: 45,
+      },
+      {
+        title: 'Fetch API',
+        description: 'Request data from web APIs and use it in your program.',
+        objectives: ['Make GET requests with fetch.', 'Read JSON responses.', 'Check response status.'],
+        resources: ['jsinfo-fetch'],
+        exercises: ['Retrieve information from a public API'],
+        difficulty: 'intermediate',
+        minutes: 90,
+      },
+      {
+        title: 'Error handling',
+        description: 'Design code that fails clearly: meaningful messages, fallbacks and custom errors.',
+        objectives: ['Handle network and parsing errors.', 'Show useful error messages.', 'Create custom error types.'],
+        resources: ['jsinfo-custom-errors', 'jsinfo-try-catch'],
+        exercises: ['Handle errors when retrieving data'],
+        difficulty: 'intermediate',
+      },
+    ],
+  },
+  {
+    number: 3,
+    title: 'TypeScript',
+    duration: '1 week',
+    estimatedWeeks: 1,
+    ongoing: false,
+    description:
+      'Add types to JavaScript so your editor catches mistakes before you run the code. Lyra will be written in TypeScript.',
+    objectives: [
+      'Understand why TypeScript exists and what it checks.',
+      'Describe data with interfaces and type aliases.',
+      'Type functions and collections.',
+      'Read and fix TypeScript errors.',
+    ],
+    resourceIds: ['ts-from-scratch', 'ts-handbook'],
+    lessons: [
+      {
+        title: 'Introduction to TypeScript',
+        description: 'What TypeScript adds to JavaScript and how it is compiled.',
+        objectives: ['Explain static typing.', 'Run the TypeScript compiler or playground.'],
+        resources: ['ts-from-scratch'],
+        minutes: 45,
+      },
+      {
+        title: 'Basic types',
+        description: 'string, number, boolean and the special types any and unknown.',
+        objectives: ['Use the primitive types.', 'Know why any should be avoided.'],
+        resources: ['ts-everyday-types'],
+        minutes: 45,
+      },
+      {
+        title: 'Type inference',
+        description: 'TypeScript can often work out types for you.',
+        objectives: ['Recognise inferred types by hovering in the editor.', 'Know when to rely on inference.'],
+        resources: ['ts-inference'],
+        minutes: 30,
+      },
+      {
+        title: 'Type annotations',
+        description: 'Explicitly declare the type of variables, parameters and return values.',
+        objectives: ['Annotate variables and parameters.', 'Annotate return types.'],
+        resources: ['ts-everyday-types'],
+        minutes: 30,
+      },
+      {
+        title: 'Arrays and object types',
+        description: 'Describe lists and object shapes.',
+        objectives: ['Type arrays with string[] and Array<T>.', 'Write inline object types.'],
+        resources: ['ts-everyday-types', 'ts-objects'],
+        exercises: ['Create typed vocabulary collections'],
+      },
+      {
+        title: 'Interfaces',
+        description: 'Name and reuse the shape of an object.',
+        objectives: ['Declare interfaces.', 'Extend interfaces.'],
+        resources: ['ts-everyday-types', 'ts-objects'],
+        exercises: ['Create a VocabularyWord interface'],
+      },
+      {
+        title: 'Type aliases',
+        description: 'Give a name to any type, including unions and primitives.',
+        objectives: ['Declare type aliases.', 'Know the practical differences from interfaces.'],
+        resources: ['ts-everyday-types'],
+        exercises: ['Define user and learning-session types'],
+        minutes: 45,
+      },
+      {
+        title: 'Union types',
+        description: 'A value that can be one of several types, such as "beginner" | "advanced".',
+        objectives: ['Write union types.', 'Narrow unions with checks.'],
+        resources: ['ts-everyday-types'],
+        difficulty: 'intermediate',
+        minutes: 45,
+      },
+      {
+        title: 'Optional properties',
+        description: 'Mark object properties that may be missing.',
+        objectives: ['Use ? for optional properties.', 'Safely read optional values.'],
+        resources: ['ts-objects'],
+        minutes: 30,
+      },
+      {
+        title: 'Typed functions',
+        description: 'Type parameters, return values and callback functions.',
+        objectives: ['Type function parameters and returns.', 'Type callback parameters.'],
+        resources: ['ts-functions'],
+        difficulty: 'intermediate',
+      },
+      {
+        title: 'Introduction to generics',
+        description: 'Write functions and types that work with many types while staying safe.',
+        objectives: ['Read generic syntax like Array<T>.', 'Write a simple generic function.'],
+        resources: ['ts-generics'],
+        difficulty: 'advanced',
+      },
+      {
+        title: 'Importing and exporting types',
+        description: 'Share types across files in a project.',
+        objectives: ['Export interfaces and types.', 'Use import type.'],
+        resources: ['ts-modules'],
+        exercises: ['Understand and fix TypeScript errors in a small project'],
+        difficulty: 'intermediate',
+        minutes: 45,
+      },
+    ],
+  },
+  {
+    number: 4,
+    title: 'React Fundamentals',
+    duration: '1–2 weeks',
+    estimatedWeeks: 1.5,
+    ongoing: false,
+    description:
+      'Build user interfaces from components. React concepts transfer directly to React Native, which Lyra will use.',
+    objectives: [
+      'Build interfaces from reusable components.',
+      'Pass data with props and manage state.',
+      'Respond to user events.',
+      'Use the core hooks.',
+    ],
+    resourceIds: ['react-learn'],
+    lessons: [
+      {
+        title: 'Components',
+        description: 'Components are reusable pieces of UI written as functions.',
+        objectives: ['Write a function component.', 'Compose components inside each other.'],
+        resources: ['react-learn', 'react-components'],
+        exercises: ['Create a vocabulary card component'],
+      },
+      {
+        title: 'JSX',
+        description: 'The HTML-like syntax used to describe UI in React.',
+        objectives: ['Write JSX markup.', 'Embed JavaScript expressions with { }.'],
+        resources: ['react-jsx'],
+        minutes: 45,
+      },
+      {
+        title: 'Props',
+        description: 'Pass data from a parent component to a child component.',
+        objectives: ['Pass and read props.', 'Type props with TypeScript.'],
+        resources: ['react-props'],
+        exercises: ['Build reusable components driven by props'],
+      },
+      {
+        title: 'State',
+        description: 'Let components remember values that change over time.',
+        objectives: ['Explain why regular variables are not enough.', 'Understand re-rendering.'],
+        resources: ['react-state'],
+        difficulty: 'intermediate',
+      },
+      {
+        title: 'Events',
+        description: 'React to clicks, typing and other interactions.',
+        objectives: ['Attach event handlers.', 'Pass handlers as props.'],
+        resources: ['react-events'],
+        exercises: ['Reveal and hide translations on click'],
+      },
+      {
+        title: 'Conditional rendering',
+        description: 'Show different UI depending on state or props.',
+        objectives: ['Use && and ternaries in JSX.', 'Return early from components.'],
+        resources: ['react-conditional'],
+        minutes: 45,
+      },
+      {
+        title: 'Rendering lists',
+        description: 'Turn arrays of data into lists of components.',
+        objectives: ['Render arrays with map.', 'Use stable keys.'],
+        resources: ['react-lists'],
+        minutes: 45,
+      },
+      {
+        title: 'Hooks',
+        description: 'Hooks let function components use React features such as state and effects.',
+        objectives: ['Know the rules of hooks.', 'Recognise the most common built-in hooks.'],
+        resources: ['react-hooks'],
+        difficulty: 'intermediate',
+        minutes: 45,
+      },
+      {
+        title: 'useState',
+        description: 'The hook for local component state.',
+        objectives: ['Use useState with primitives, arrays and objects.', 'Update state immutably.'],
+        resources: ['react-usestate', 'react-state'],
+        exercises: ['Mark words as mastered', 'Display mastery statistics'],
+        difficulty: 'intermediate',
+        minutes: 90,
+      },
+      {
+        title: 'useEffect',
+        description: 'Synchronise a component with something outside React, such as fetching data.',
+        objectives: ['Write effects with dependency arrays.', 'Clean up effects.', 'Know when you do not need an effect.'],
+        resources: ['react-useeffect'],
+        difficulty: 'advanced',
+        minutes: 90,
+      },
+    ],
+  },
+  {
+    number: 5,
+    title: 'React Native and Expo',
+    duration: '2 weeks',
+    estimatedWeeks: 2,
+    ongoing: false,
+    practiceLabel: 'Practical projects',
+    description:
+      'Move from the web to mobile. Build real apps that run on your phone with Expo, the toolkit Lyra will be built with.',
+    objectives: [
+      'Create and run an Expo app on a device.',
+      'Lay out screens with core components and Flexbox.',
+      'Navigate between screens with Expo Router.',
+      'Build three small but complete mobile apps.',
+    ],
+    resourceIds: ['expo-tutorial', 'rn-getting-started'],
+    lessons: [
+      {
+        title: 'Creating an Expo project',
+        description: 'Generate a new app with create-expo-app and run it on your phone with Expo Go.',
+        objectives: ['Create a project.', 'Run it on a device or simulator.', 'Understand the project structure.'],
+        resources: ['expo-tutorial', 'expo-create'],
+        exercises: ['Build a counter application'],
+      },
+      {
+        title: 'React Native components',
+        description: 'How React Native replaces HTML elements with native components.',
+        objectives: ['Explain native vs web components.', 'Map familiar React ideas to React Native.'],
+        resources: ['rn-core-components'],
+        minutes: 45,
+      },
+      {
+        title: 'View, Text, Image, ScrollView, FlatList',
+        description: 'The core building blocks used on almost every screen.',
+        objectives: ['Use each core component.', 'Choose FlatList over ScrollView for long lists.'],
+        resources: ['rn-core-components', 'rn-flatlist'],
+        minutes: 90,
+      },
+      {
+        title: 'Styling and Flexbox',
+        description: 'Style components with StyleSheet and lay them out with Flexbox.',
+        objectives: ['Use StyleSheet.create.', 'Lay out with flexDirection, justifyContent and alignItems.'],
+        resources: ['rn-flexbox', 'expo-tutorial'],
+        difficulty: 'intermediate',
+        minutes: 90,
+      },
+      {
+        title: 'Navigation with Expo Router',
+        description: 'File-based routing: each file in the app folder becomes a screen.',
+        objectives: ['Create stack and tab navigation.', 'Pass parameters between screens.'],
+        resources: ['expo-router'],
+        difficulty: 'intermediate',
+        minutes: 90,
+      },
+      {
+        title: 'State management',
+        description: 'Share state between screens using lifted state and React context.',
+        objectives: ['Lift state up.', 'Use React context for shared data.'],
+        resources: ['react-learn', 'expo-tutorial'],
+        exercises: ['Build a vocabulary flashcard application'],
+        difficulty: 'intermediate',
+        minutes: 90,
+      },
+      {
+        title: 'User interactions',
+        description: 'Buttons, pressables, text inputs and gestures.',
+        objectives: ['Use Pressable and TextInput.', 'Give users feedback on interaction.'],
+        resources: ['expo-tutorial'],
+        exercises: ['Build a multiple-choice quiz application'],
+        difficulty: 'intermediate',
+        minutes: 90,
+      },
+      {
+        title: 'Images and assets',
+        description: 'Include images, icons and fonts in your app.',
+        objectives: ['Load local and remote images.', 'Manage the assets folder.'],
+        resources: ['expo-tutorial'],
+        minutes: 45,
+      },
+      {
+        title: 'Animations',
+        description: 'Add subtle motion to make interfaces feel responsive.',
+        objectives: ['Use the Animated API for a simple transition.', 'Know when animation helps and when it distracts.'],
+        resources: ['rn-animations', 'expo-tutorial'],
+        difficulty: 'advanced',
+        minutes: 90,
+      },
+      {
+        title: 'Device-specific functionality',
+        description: 'Use device features through Expo SDK modules, and handle iOS vs Android differences.',
+        objectives: ['Install and use an Expo SDK module.', 'Use Platform to handle OS differences.'],
+        resources: ['expo-tutorial', 'expo-docs'],
+        difficulty: 'advanced',
+      },
+    ],
+  },
+  {
+    number: 6,
+    title: 'SQL and Supabase',
+    duration: '1–2 weeks',
+    estimatedWeeks: 1.5,
+    ongoing: false,
+    description:
+      'Learn how data is stored in relational databases and connect your Expo app to Supabase to save user progress in the cloud.',
+    objectives: [
+      'Design simple relational tables.',
+      'Query and modify data with SQL.',
+      'Use Supabase for database and authentication.',
+      'Protect user data with Row Level Security.',
+    ],
+    resourceIds: ['sqlbolt', 'supabase-start', 'supabase-expo'],
+    lessons: [
+      {
+        title: 'Introduction to relational databases',
+        description: 'What a database is and why apps store data in related tables.',
+        objectives: ['Explain what a relational database is.', 'Know why apps need a server-side database.'],
+        resources: ['sqlbolt'],
+        minutes: 45,
+      },
+      {
+        title: 'Tables, rows, and columns',
+        description: 'The basic structure of relational data.',
+        objectives: ['Describe tables, rows and columns.', 'Choose sensible column types.'],
+        resources: ['sqlbolt'],
+        exercises: ['Create a vocabulary table'],
+        minutes: 45,
+      },
+      {
+        title: 'Primary keys',
+        description: 'A unique identifier for every row.',
+        objectives: ['Explain why every table needs a primary key.', 'Use UUID or serial keys.'],
+        resources: ['sqlbolt'],
+        exercises: ['Create a user table'],
+        minutes: 30,
+      },
+      {
+        title: 'Foreign keys',
+        description: 'Link rows in one table to rows in another.',
+        objectives: ['Define a foreign key.', 'Understand referential integrity.'],
+        resources: ['sqlbolt'],
+        difficulty: 'intermediate',
+        minutes: 45,
+      },
+      {
+        title: 'Database relationships',
+        description: 'One-to-many and many-to-many relationships, such as users and their word progress.',
+        objectives: ['Model one-to-many and many-to-many relationships.', 'Design a join table.'],
+        resources: ['sqlbolt'],
+        exercises: ['Create a user vocabulary progress table'],
+        difficulty: 'intermediate',
+      },
+      {
+        title: 'SELECT, INSERT, UPDATE, DELETE',
+        description: 'The four core SQL statements for reading and changing data.',
+        objectives: ['Read data with SELECT.', 'Write data with INSERT, UPDATE and DELETE.'],
+        resources: ['sqlbolt'],
+        minutes: 90,
+      },
+      {
+        title: 'WHERE and JOIN',
+        description: 'Filter rows and combine data from related tables.',
+        objectives: ['Filter with WHERE.', 'Combine tables with INNER and LEFT JOIN.'],
+        resources: ['sqlbolt', 'sqlbolt-joins'],
+        difficulty: 'intermediate',
+        minutes: 90,
+      },
+      {
+        title: 'Introduction to Supabase',
+        description: 'Supabase gives you a hosted Postgres database, authentication and APIs.',
+        objectives: ['Understand what Supabase provides.', 'Create a free Supabase project.'],
+        resources: ['supabase-start'],
+        minutes: 45,
+      },
+      {
+        title: 'Database creation',
+        description: 'Create tables in Supabase using the dashboard and the SQL editor.',
+        objectives: ['Create tables in the dashboard.', 'Run SQL in the SQL editor.'],
+        resources: ['supabase-start'],
+        difficulty: 'intermediate',
+      },
+      {
+        title: 'Authentication',
+        description: 'Let users sign up and sign in to your app.',
+        objectives: ['Enable email authentication.', 'Understand sessions and the current user.'],
+        resources: ['supabase-auth'],
+        difficulty: 'intermediate',
+        minutes: 90,
+      },
+      {
+        title: 'Row Level Security',
+        description: 'Make sure each user can only read and write their own data.',
+        objectives: ['Enable RLS on a table.', 'Write a policy based on auth.uid().'],
+        resources: ['supabase-rls'],
+        difficulty: 'advanced',
+        minutes: 90,
+      },
+      {
+        title: 'Connecting Expo to Supabase',
+        description: 'Install the Supabase client in your Expo app and read and write data.',
+        objectives: ['Configure the Supabase client.', 'Query and insert data from the app.'],
+        resources: ['supabase-expo'],
+        exercises: ['Connect the application to Supabase', 'Retrieve and save vocabulary progress'],
+        difficulty: 'advanced',
+        minutes: 120,
+      },
+    ],
+  },
+  {
+    number: 7,
+    title: 'Git, Testing, and Development Workflow',
+    duration: 'Ongoing, with a dedicated consolidation week',
+    estimatedWeeks: 1,
+    ongoing: true,
+    description:
+      'Professional habits that keep your work safe and your code trustworthy: version control, debugging, testing and reviewing AI-generated code.',
+    objectives: [
+      'Use Git daily to save and share work.',
+      'Work with branches safely.',
+      'Debug problems methodically.',
+      'Critically review code written by Claude Code.',
+    ],
+    resourceIds: ['github-skills', 'git-docs', 'github-learning'],
+    lessons: [
+      {
+        title: 'Understanding Git',
+        description: 'How Git tracks the history of your project as snapshots.',
+        objectives: ['Explain the working directory, staging area and repository.', 'Read git status output.'],
+        resources: ['pro-git', 'github-skills'],
+        minutes: 45,
+      },
+      {
+        title: 'Repositories',
+        description: 'Create local repositories and connect them to GitHub.',
+        objectives: ['Use git init and git clone.', 'Add a remote.'],
+        resources: ['github-skills', 'git-docs'],
+        exercises: ['Create a GitHub repository'],
+        minutes: 45,
+      },
+      {
+        title: 'Commits',
+        description: 'Save meaningful snapshots of your work with clear messages.',
+        objectives: ['Stage and commit changes.', 'Write clear commit messages.', 'View history with git log.'],
+        resources: ['pro-git'],
+        exercises: ['Commit each completed project'],
+        minutes: 45,
+      },
+      {
+        title: 'Branches',
+        description: 'Work on features in isolation and merge them back.',
+        objectives: ['Create and switch branches.', 'Merge branches.', 'Resolve a simple merge conflict.'],
+        resources: ['pro-git', 'github-skills'],
+        exercises: ['Create and merge branches'],
+        difficulty: 'intermediate',
+        minutes: 90,
+      },
+      {
+        title: 'Pushing code to GitHub',
+        description: 'Share your local commits with GitHub and keep them in sync.',
+        objectives: ['Push and pull.', 'Open a pull request.'],
+        resources: ['github-skills', 'github-learning'],
+        minutes: 45,
+      },
+      {
+        title: 'Reverting changes',
+        description: 'Undo mistakes safely with restore, revert and reset.',
+        objectives: ['Discard uncommitted changes.', 'Revert a commit.', 'Know when reset is dangerous.'],
+        resources: ['pro-git', 'git-docs'],
+        exercises: ['Practice reverting changes'],
+        difficulty: 'intermediate',
+      },
+      {
+        title: 'Debugging',
+        description: 'Find the cause of a problem systematically instead of guessing.',
+        objectives: ['Use console.log and breakpoints.', 'Reproduce, isolate and fix bugs.'],
+        resources: ['vscode-docs'],
+        exercises: ['Test and debug an application'],
+        difficulty: 'intermediate',
+        minutes: 90,
+      },
+      {
+        title: 'Introduction to testing',
+        description: 'Automated tests check that your code still works after changes.',
+        objectives: ['Explain unit tests.', 'Read and run an existing test.'],
+        resources: ['github-learning'],
+        difficulty: 'intermediate',
+      },
+      {
+        title: 'Understanding application errors',
+        description: 'Read stack traces and error messages to find the real problem.',
+        objectives: ['Read a stack trace.', 'Distinguish syntax, type and runtime errors.'],
+        resources: ['jsinfo-try-catch'],
+        minutes: 45,
+      },
+      {
+        title: 'Reviewing AI-generated code',
+        description: 'Treat code from Claude Code as a pull request: read it, run it, question it.',
+        objectives: ['Read generated code before accepting it.', 'Verify behaviour by running it.', 'Ask for explanations of anything unclear.'],
+        resources: ['github-learning'],
+        difficulty: 'intermediate',
+      },
+    ],
+  },
+  {
+    number: 8,
+    title: 'Build the Lyra Prototype',
+    duration: 'Ongoing',
+    estimatedWeeks: 4,
+    ongoing: true,
+    practiceLabel: 'Implementation goals',
+    description:
+      'Apply everything you have learned to build the first version of Lyra, your vocabulary-learning app. Advanced features such as FSRS, leagues and multiplayer come later.',
+    objectives: [
+      'Apply everything learned to the actual vocabulary-learning application.',
+      'Ship a working prototype with cards, a quiz and saved progress.',
+      'Work productively with Claude Code while understanding every change.',
+    ],
+    resourceIds: ['expo-docs', 'expo-typescript', 'supabase-expo'],
+    lessons: [
+      { title: 'Create the Expo project', description: 'Start the real Lyra project and commit it to GitHub.', objectives: ['Create the project with create-expo-app.', 'Push the initial commit.'], resources: ['expo-create'], difficulty: 'intermediate' },
+      { title: 'Configure TypeScript', description: 'Make sure TypeScript is set up with strict checks.', objectives: ['Enable strict mode.', 'Fix any initial type errors.'], resources: ['expo-typescript'], difficulty: 'intermediate', minutes: 45 },
+      { title: 'Create the application folder structure', description: 'Decide where screens, components, data and utilities live.', objectives: ['Create a clear folder structure.', 'Document it in a README.'], resources: ['expo-router'], difficulty: 'intermediate', minutes: 45 },
+      { title: 'Build the primary navigation', description: 'Set up the main tabs and screens with Expo Router.', objectives: ['Create tab navigation.', 'Add placeholder screens.'], resources: ['expo-router'], difficulty: 'intermediate', minutes: 90 },
+      { title: 'Create the vocabulary data model', description: 'Define TypeScript types and seed data for vocabulary.', objectives: ['Define a VocabularyWord type.', 'Create seed data.'], resources: ['ts-everyday-types'], difficulty: 'intermediate' },
+      { title: 'Build vocabulary cards', description: 'A card component that shows a word and reveals its translation.', objectives: ['Build a reusable card.', 'Reveal and hide the translation.'], resources: ['rn-core-components'], difficulty: 'intermediate', minutes: 120 },
+      { title: 'Build a basic quiz', description: 'A multiple-choice quiz drawn from the vocabulary list.', objectives: ['Generate questions.', 'Track score.'], resources: ['expo-docs'], difficulty: 'advanced', minutes: 120 },
+      { title: 'Connect Supabase', description: 'Connect Lyra to your Supabase project with authentication.', objectives: ['Configure the client.', 'Sign users in.'], resources: ['supabase-expo', 'supabase-auth'], difficulty: 'advanced', minutes: 120 },
+      { title: 'Save user progress', description: 'Persist which words a user has mastered.', objectives: ['Write progress to the database.', 'Load progress on start.', 'Protect it with RLS.'], resources: ['supabase-expo', 'supabase-rls'], difficulty: 'advanced', minutes: 120 },
+      { title: 'Implement a basic learning session', description: 'Combine cards and quiz into a short learning session flow.', objectives: ['Design a session flow.', 'Show a summary at the end.'], resources: ['expo-docs'], difficulty: 'advanced', minutes: 180 },
+    ],
+  },
+];
+
+export const curriculum: Phase[] = phaseInputs.map(buildPhase);
+
+export const allLessons: Lesson[] = curriculum.flatMap((p) => p.lessons);
+
+const lessonById = new Map(allLessons.map((l) => [l.id, l]));
+const phaseById = new Map(curriculum.map((p) => [p.id, p]));
+
+export function getLesson(id: string): Lesson | undefined {
+  return lessonById.get(id);
+}
+
+export function getPhase(id: string): Phase | undefined {
+  return phaseById.get(id);
+}
+
+export const allExerciseIds: string[] = allLessons.flatMap((l) => l.exercises.map((e) => e.id));
