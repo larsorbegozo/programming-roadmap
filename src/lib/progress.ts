@@ -1,5 +1,6 @@
 import { getCheckpoint } from '../data/checkpoints';
 import { allLessons, curriculum } from '../data/curriculum';
+import { getFinal } from '../data/finals';
 import { allMilestones, type MilestoneDefinition } from '../data/milestones';
 import type { Lesson, Phase } from '../types/curriculum';
 import type { AppState, StudyCategory, StudySession } from '../types/state';
@@ -52,24 +53,32 @@ export function isCheckpointPassed(state: AppState, phaseId: string): boolean {
   return getCheckpointStatus(state, phaseId).passed;
 }
 
+export function isFinalExamPassed(state: AppState, phaseId: string): boolean {
+  return (state.examAttempts[phaseId] ?? []).some((a) => a.passed);
+}
+
 export interface PhaseProgress {
   phase: Phase;
   lessonsCompleted: number;
   lessonsTotal: number;
   hasCheckpoint: boolean;
   checkpointPassed: boolean;
-  /** Lessons plus the checkpoint, as one percentage. */
+  hasFinal: boolean;
+  finalPassed: boolean;
+  /** Lessons, checkpoint and final exam, as one percentage. */
   percent: number;
   status: 'not-started' | 'in-progress' | 'completed';
 }
 
-/** A phase is complete only when every lesson is done AND its checkpoint is passed. */
+/** A phase is complete only when every lesson is done, its checkpoint is passed AND its final exam is passed. */
 export function getPhaseProgress(state: AppState, phase: Phase): PhaseProgress {
   const lessonsTotal = phase.lessons.length;
   const lessonsCompleted = phase.lessons.filter((l) => isLessonComplete(state, l.id)).length;
   const checkpoint = getCheckpointStatus(state, phase.id);
-  const units = lessonsTotal + (checkpoint.exists ? 1 : 0);
-  const done = lessonsCompleted + (checkpoint.exists && checkpoint.passed ? 1 : 0);
+  const hasFinal = Boolean(getFinal(phase.id));
+  const finalPassed = hasFinal && isFinalExamPassed(state, phase.id);
+  const units = lessonsTotal + (checkpoint.exists ? 1 : 0) + (hasFinal ? 1 : 0);
+  const done = lessonsCompleted + (checkpoint.exists && checkpoint.passed ? 1 : 0) + (finalPassed ? 1 : 0);
   const status =
     done === units ? 'completed' : lessonsCompleted === 0 && !checkpoint.started && !(checkpoint.exists && checkpoint.passed) ? 'not-started' : 'in-progress';
   return {
@@ -78,6 +87,8 @@ export function getPhaseProgress(state: AppState, phase: Phase): PhaseProgress {
     lessonsTotal,
     hasCheckpoint: checkpoint.exists,
     checkpointPassed: checkpoint.exists && checkpoint.passed,
+    hasFinal,
+    finalPassed,
     percent: percent(done, units),
     status,
   };
@@ -93,12 +104,17 @@ export function getOverallProgress(state: AppState) {
   const withCheckpoint = curriculum.filter((p) => getCheckpoint(p.id));
   const checkpointsTotal = withCheckpoint.length;
   const checkpointsPassed = withCheckpoint.filter((p) => isCheckpointPassed(state, p.id)).length;
+  const withFinal = curriculum.filter((p) => getFinal(p.id));
+  const finalsTotal = withFinal.length;
+  const finalsPassed = withFinal.filter((p) => isFinalExamPassed(state, p.id)).length;
   return {
     lessonsCompleted,
     lessonsTotal,
     checkpointsPassed,
     checkpointsTotal,
-    percent: percent(lessonsCompleted + checkpointsPassed, lessonsTotal + checkpointsTotal),
+    finalsPassed,
+    finalsTotal,
+    percent: percent(lessonsCompleted + checkpointsPassed + finalsPassed, lessonsTotal + checkpointsTotal + finalsTotal),
   };
 }
 
@@ -107,14 +123,18 @@ export function getNextLesson(state: AppState): Lesson | null {
   return allLessons.find((l) => !isLessonComplete(state, l.id)) ?? null;
 }
 
-export type NextStep = { kind: 'lesson'; lesson: Lesson; phase: Phase } | { kind: 'checkpoint'; phase: Phase };
+export type NextStep =
+  | { kind: 'lesson'; lesson: Lesson; phase: Phase }
+  | { kind: 'checkpoint'; phase: Phase }
+  | { kind: 'final'; phase: Phase };
 
-/** The recommended next thing to do: the next lesson, or a phase checkpoint once its lessons are done. */
+/** The recommended next thing to do: the next lesson, then the phase checkpoint, then the phase final exam. */
 export function getNextStep(state: AppState): NextStep | null {
   for (const phase of curriculum) {
     const lesson = phase.lessons.find((l) => !isLessonComplete(state, l.id));
     if (lesson) return { kind: 'lesson', lesson, phase };
     if (!isCheckpointPassed(state, phase.id)) return { kind: 'checkpoint', phase };
+    if (getFinal(phase.id) && !isFinalExamPassed(state, phase.id)) return { kind: 'final', phase };
   }
   return null;
 }
@@ -297,7 +317,8 @@ export function suggestedWeeklyObjective(state: AppState): string {
   const step = getNextStep(state);
   if (!step) return 'Keep building and polishing Lyra.';
   const phase = step.phase;
-  if (step.kind === 'checkpoint') return `Phase ${phase.number}: pass the checkpoint to complete ${phase.title}.`;
+  if (step.kind === 'checkpoint') return `Phase ${phase.number}: pass the checkpoint, then sit the final exam.`;
+  if (step.kind === 'final') return `Phase ${phase.number}: sit and pass the ${phase.title} final exam.`;
   const remaining = phase.lessons.filter((l) => !isLessonComplete(state, l.id));
   const lessonsPerWeek = Math.max(2, Math.round(phase.lessons.length / Math.max(1, phase.estimatedWeeks)));
   const batch = remaining.slice(0, lessonsPerWeek);
@@ -306,7 +327,7 @@ export function suggestedWeeklyObjective(state: AppState): string {
   if (!first || !last) return '';
   const range = first === last ? `lesson ${first.number}` : `lessons ${first.number}–${last.number}`;
   const finishesPhase = batch.length === remaining.length;
-  return `Phase ${phase.number}: complete ${range} (${first.title}${first === last ? '' : ` → ${last.title}`})${finishesPhase ? ', then pass the checkpoint' : ''}.`;
+  return `Phase ${phase.number}: complete ${range} (${first.title}${first === last ? '' : ` → ${last.title}`})${finishesPhase ? ', then pass the checkpoint and the final' : ''}.`;
 }
 
 export function daysSince(dateKey: string): number {

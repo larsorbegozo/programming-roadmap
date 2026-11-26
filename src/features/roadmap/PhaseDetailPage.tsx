@@ -4,10 +4,11 @@ import { Checkbox, EmptyState, Panel, ProgressRing, SectionTitle, buttonClass } 
 import { curriculum, getPhase } from '../../data/curriculum';
 import { getResource } from '../../data/resources';
 import { useAppState } from '../../hooks/useAppState';
-import { checkpointHref, lessonHref, phaseHref } from '../../hooks/useHashRoute';
+import { checkpointHref, examHref, lessonHref, phaseHref } from '../../hooks/useHashRoute';
 import { getNextLesson, getNextStep, getPhaseProgress } from '../../lib/progress';
 import type { Resource } from '../../types/curriculum';
 import { CheckpointRow } from '../checkpoints/CheckpointRow';
+import { FinalRow } from '../exams/FinalRow';
 import { LessonRow } from './LessonRow';
 import { PhaseStatusBadge } from './PhaseStatus';
 
@@ -61,11 +62,17 @@ export function PhaseDetailPage({ phaseId }: { phaseId: string }) {
               {progress.lessonsCompleted === 0 ? 'Start phase' : 'Continue phase'} <ArrowRight className="size-4" />
             </a>
           ) : (
-            progress.hasCheckpoint &&
-            !progress.checkpointPassed && (
+            progress.hasCheckpoint && !progress.checkpointPassed ? (
               <a href={checkpointHref(phase.id)} className={`${buttonClass('primary')} mt-5`}>
                 Take the checkpoint <ArrowRight className="size-4" />
               </a>
+            ) : (
+              progress.hasFinal &&
+              !progress.finalPassed && (
+                <a href={state.examPlan ? examHref(phase.id) : '#/exams'} className={`${buttonClass('primary')} mt-5`}>
+                  Sit the final exam <ArrowRight className="size-4" />
+                </a>
+              )
             )
           )}
         </div>
@@ -89,6 +96,7 @@ export function PhaseDetailPage({ phaseId }: { phaseId: string }) {
                   <LessonRow key={l.id} lesson={l} isNext={l.id === next?.id && step?.kind === 'lesson'} />
                 ))}
                 <CheckpointRow phase={phase} isNext={checkpointIsNext} />
+                <FinalRow phase={phase} isNext={step?.kind === 'final' && step.phase.id === phase.id} />
               </ul>
             </Panel>
           </div>

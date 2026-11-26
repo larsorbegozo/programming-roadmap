@@ -14,6 +14,8 @@ export interface CodeTest {
    * An empty string compares the result of the learner's own last statement.
    */
   code: string;
+  /** Final exams only: hidden tests are not run by "Run tests" during the exam, only when grading. */
+  hidden?: boolean;
 }
 
 /** TypeScript-only: a snippet that must type-check. `// @ts-expect-error` lines assert that something is rejected. */
@@ -22,6 +24,8 @@ export interface TypeTest {
   code: string;
   /** Shown when the learner's types are too loose (an @ts-expect-error line is unused). */
   hint?: string;
+  /** Final exams only: see CodeTest.hidden. */
+  hidden?: boolean;
 }
 
 export interface CodeProblem {
@@ -94,4 +98,13 @@ export interface RunReport {
   error?: string;
   /** sql: the learner's last result set, for display. */
   table?: { columns: string[]; rows: unknown[][] };
+}
+
+/** A timed final exam for one phase ("unidad"). */
+export interface FinalExam {
+  phaseId: string;
+  /** Time limit in minutes. */
+  minutes: number;
+  questions: Question[];
+  problems: CodeProblem[];
 }

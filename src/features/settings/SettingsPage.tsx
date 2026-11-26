@@ -161,7 +161,7 @@ export function SettingsPage() {
       </Panel>
 
       <Panel className="border-danger/25">
-        <Row title="Reset progress" description="Permanently delete all completed lessons, checkpoint results, code, notes, sessions and settings from this browser.">
+        <Row title="Reset progress" description="Permanently delete all completed lessons, checkpoint and exam results, your exam calendar, code, notes, sessions and settings from this browser.">
           <Button variant="danger" onClick={() => setResetOpen(true)}>
             <RotateCcw className="size-4" /> Reset
           </Button>
@@ -169,7 +169,7 @@ export function SettingsPage() {
       </Panel>
 
       <ConfirmDialog open={resetOpen} title="Reset all progress?" confirmLabel="Reset everything" tone="danger" onConfirm={confirmReset} onCancel={() => setResetOpen(false)}>
-        This deletes every completed lesson, checkpoint result, saved code, note, study session and setting. It cannot be undone. Consider exporting a backup first.
+        This deletes every completed lesson, checkpoint and exam result, your exam calendar, saved code, notes, study sessions and settings. It cannot be undone. Consider exporting a backup first.
       </ConfirmDialog>
 
       <ConfirmDialog open={pendingImport !== null} title="Replace current progress?" confirmLabel="Import" onConfirm={confirmImport} onCancel={() => setPendingImport(null)}>

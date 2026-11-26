@@ -1,5 +1,5 @@
 import { getLesson } from '../data/curriculum';
-import type { AppState, CheckpointProgress, Settings, StudySession } from '../types/state';
+import type { ActiveExam, AppState, CheckpointProgress, ExamAnswer, ExamAttempt, ExamPlan, Settings, StudySession } from '../types/state';
 import { createInitialState } from './validation';
 
 export type Action =
@@ -16,6 +16,11 @@ export type Action =
   | { type: 'saveProblemCode'; phaseId: string; problemId: string; code: string }
   | { type: 'markProblemPassed'; phaseId: string; problemId: string; code: string }
   | { type: 'recordQuiz'; phaseId: string; score: number; passed: boolean }
+  | { type: 'setExamPlan'; plan: ExamPlan | null }
+  | { type: 'startExam'; exam: ActiveExam }
+  | { type: 'updateExamAnswer'; questionId: string; answer: ExamAnswer | null }
+  | { type: 'updateExamCode'; problemId: string; code: string }
+  | { type: 'finishExam'; phaseId: string; attempt: ExamAttempt }
   | { type: 'replaceState'; state: AppState }
   | { type: 'reset' };
 
@@ -89,6 +94,25 @@ export function reducer(state: AppState, action: Action): AppState {
           },
         };
       });
+    case 'setExamPlan':
+      return { ...state, examPlan: action.plan };
+    case 'startExam':
+      return state.activeExam ? state : { ...state, activeExam: action.exam };
+    case 'updateExamAnswer': {
+      if (!state.activeExam) return state;
+      const answers = { ...state.activeExam.answers };
+      if (action.answer === null) delete answers[action.questionId];
+      else answers[action.questionId] = action.answer;
+      return { ...state, activeExam: { ...state.activeExam, answers } };
+    }
+    case 'updateExamCode':
+      if (!state.activeExam) return state;
+      return { ...state, activeExam: { ...state.activeExam, code: { ...state.activeExam.code, [action.problemId]: action.code } } };
+    case 'finishExam': {
+      if (state.activeExam?.phaseId !== action.phaseId) return state;
+      const attempts = [...(state.examAttempts[action.phaseId] ?? []), action.attempt];
+      return { ...state, activeExam: null, examAttempts: { ...state.examAttempts, [action.phaseId]: attempts } };
+    }
     case 'replaceState':
       return action.state;
     case 'reset':

@@ -1,15 +1,16 @@
 import type { ReactNode } from 'react';
-import { BarChart3, CalendarCheck, LayoutDashboard, Library, Map, Settings, Sparkles, X } from 'lucide-react';
+import { BarChart3, CalendarCheck, GraduationCap, LayoutDashboard, Library, Map, Settings, Sparkles, X } from 'lucide-react';
 import { useAppState } from '../hooks/useAppState';
 import { routeHref, type Route } from '../hooks/useHashRoute';
 import { getOverallProgress } from '../lib/progress';
 import { cx, ProgressBar } from './ui';
 
-type NavName = 'dashboard' | 'roadmap' | 'resources' | 'planner' | 'progress' | 'settings';
+type NavName = 'dashboard' | 'roadmap' | 'exams' | 'resources' | 'planner' | 'progress' | 'settings';
 
 const navItems: Array<{ name: NavName; label: string; short: string; icon: typeof Map }> = [
   { name: 'dashboard', label: 'Dashboard', short: 'Home', icon: LayoutDashboard },
   { name: 'roadmap', label: 'Roadmap', short: 'Roadmap', icon: Map },
+  { name: 'exams', label: 'Finals', short: 'Finals', icon: GraduationCap },
   { name: 'resources', label: 'Resources', short: 'Library', icon: Library },
   { name: 'planner', label: 'Weekly plan', short: 'Plan', icon: CalendarCheck },
   { name: 'progress', label: 'Progress', short: 'Progress', icon: BarChart3 },
@@ -17,6 +18,7 @@ const navItems: Array<{ name: NavName; label: string; short: string; icon: typeo
 ];
 
 function activeNav(route: Route): NavName {
+  if (route.name === 'exam') return 'exams';
   return route.name === 'lesson' || route.name === 'checkpoint' ? 'roadmap' : route.name;
 }
 
@@ -89,7 +91,7 @@ export function Layout({ route, children }: { route: Route; children: ReactNode 
       {/* Mobile bottom navigation */}
       <nav
         aria-label="Main"
-        className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-6 border-t border-line bg-bg/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
+        className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-7 border-t border-line bg-bg/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
       >
         {navItems.map(({ name, short, icon: Icon }) => (
           <a

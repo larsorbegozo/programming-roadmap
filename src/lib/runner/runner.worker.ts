@@ -420,9 +420,11 @@ async function runSql(req: SqlRequest): Promise<WorkerResponse> {
       : `Row ${i + 1} differs: expected ${exp[i]}, received ${act[i]}.`;
   };
 
+  // A check containing {{user}} re-runs the learner's query after changing the data.
+  const withQuery = (check: string, query: string) => (check.includes('{{user}}') ? [req.setup, check.split('{{user}}').join(query)] : [req.setup, query, check]);
   const results: TestResult[] = req.tests.map((test) => {
     const message = test.code.trim()
-      ? compare(run([req.setup, req.user, test.code]), run([req.setup, req.reference, test.code]))
+      ? compare(run(withQuery(test.code, req.user)), run(withQuery(test.code, req.reference)))
       : compare(user, reference);
     return message ? { name: test.name, passed: false, message } : { name: test.name, passed: true };
   });

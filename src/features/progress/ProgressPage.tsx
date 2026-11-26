@@ -1,4 +1,4 @@
-import { Award, BookCheck, CheckCircle2, Clock, Code2, Dumbbell, Flame, Layers, Lock } from 'lucide-react';
+import { Award, BookCheck, CheckCircle2, Clock, Code2, Dumbbell, Flame, GraduationCap, Layers, Lock, Star } from 'lucide-react';
 import { cx, Panel, PageHeader, ProgressBar, SectionTitle, StatTile } from '../../components/ui';
 import { checkpoints } from '../../data/checkpoints';
 import { allExerciseIds } from '../../data/curriculum';
@@ -6,6 +6,7 @@ import { habitMilestones, phaseMilestones, type MilestoneDefinition } from '../.
 import { useAppState } from '../../hooks/useAppState';
 import { phaseHref } from '../../hooks/useHashRoute';
 import { addDays, formatDate, formatMinutes, formatWeekRange, todayKey, weekStartKey } from '../../lib/dates';
+import { averageGrade } from '../../lib/exams';
 import { currentStreak, getAllPhaseProgress, getOverallProgress, longestStreak, sessionsInWeek, totalMinutes } from '../../lib/progress';
 
 const WEEKS_SHOWN = 8;
@@ -19,6 +20,7 @@ export function ProgressPage() {
   const exercisesDone = allExerciseIds.filter((id) => state.completedExercises[id]).length;
   const target = state.settings.weeklyHoursTarget * 60;
   const allProblems = Object.values(checkpoints).flatMap((c) => c.problems.map((p) => ({ phaseId: c.phaseId, id: p.id })));
+  const avg = averageGrade(state);
   const problemsSolved = allProblems.filter((p) => state.checkpoints[p.phaseId]?.problems[p.id]?.passedAt).length;
 
   const thisWeek = weekStartKey(todayKey());
@@ -36,7 +38,9 @@ export function ProgressPage() {
         <StatTile icon={<Layers className="size-3.5" />} label="Overall completion" value={`${overall.percent}%`} hint={`${overall.lessonsCompleted} of ${overall.lessonsTotal} lessons`} />
         <StatTile icon={<BookCheck className="size-3.5" />} label="Completed lessons" value={overall.lessonsCompleted} hint={`${overall.lessonsTotal - overall.lessonsCompleted} to go`} />
         <StatTile icon={<Award className="size-3.5" />} label="Checkpoints passed" value={`${overall.checkpointsPassed} / ${overall.checkpointsTotal}`} />
-        <StatTile icon={<CheckCircle2 className="size-3.5" />} label="Completed phases" value={`${phasesDone} / ${phases.length}`} hint="Lessons + checkpoint" />
+        <StatTile icon={<GraduationCap className="size-3.5" />} label="Finals passed" value={`${overall.finalsPassed} / ${overall.finalsTotal}`} />
+        <StatTile icon={<Star className="size-3.5" />} label="Average grade" value={avg === null ? '–' : avg.toFixed(2)} hint="Passed finals, 1–10" />
+        <StatTile icon={<CheckCircle2 className="size-3.5" />} label="Completed phases" value={`${phasesDone} / ${phases.length}`} hint="Lessons + checkpoint + final" />
         <StatTile icon={<Code2 className="size-3.5" />} label="Coding problems solved" value={`${problemsSolved} / ${allProblems.length}`} />
         <StatTile icon={<Clock className="size-3.5" />} label="Study hours" value={formatMinutes(minutes)} hint={`${state.sessions.length} sessions logged`} />
         <StatTile icon={<Flame className="size-3.5" />} label="Current streak" value={`${currentStreak(state)}d`} hint={`Longest: ${longestStreak(state)} days`} />
@@ -47,7 +51,7 @@ export function ProgressPage() {
         <section>
           <SectionTitle>Phase completion</SectionTitle>
           <Panel className="flex flex-col gap-4 p-5">
-            {phases.map(({ phase, percent, lessonsCompleted, lessonsTotal, checkpointPassed, hasCheckpoint, status }) => (
+            {phases.map(({ phase, percent, lessonsCompleted, lessonsTotal, checkpointPassed, hasCheckpoint, hasFinal, finalPassed, status }) => (
               <a key={phase.id} href={phaseHref(phase.id)} className="group block">
                 <div className="mb-1.5 flex items-baseline justify-between gap-3 text-[13px]">
                   <span className="truncate text-muted group-hover:text-fg">
@@ -58,6 +62,9 @@ export function ProgressPage() {
                     {lessonsCompleted}/{lessonsTotal}
                     {hasCheckpoint && (
                       <Award className={cx('size-3.5', checkpointPassed ? 'text-success' : 'text-line-strong')} aria-label={checkpointPassed ? 'Checkpoint passed' : 'Checkpoint not passed'} />
+                    )}
+                    {hasFinal && (
+                      <GraduationCap className={cx('size-3.5', finalPassed ? 'text-success' : 'text-line-strong')} aria-label={finalPassed ? 'Final passed' : 'Final not passed'} />
                     )}
                   </span>
                 </div>

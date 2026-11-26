@@ -27,7 +27,7 @@ export const phaseMilestones: MilestoneDefinition[] = curriculum.map((phase) => 
   kind: 'phase',
   phaseId: phase.id,
   title: phaseMilestoneCopy[phase.id] ?? phase.title,
-  description: `Complete every lesson in Phase ${phase.number} — ${phase.title}.`,
+  description: `Complete Phase ${phase.number} — ${phase.title}: every lesson, the checkpoint and the final exam.`,
 }));
 
 export const habitMilestones: MilestoneDefinition[] = [

@@ -5,7 +5,7 @@ import { Button, Checkbox, EmptyState, Panel, SectionTitle, buttonClass, cx, Dif
 import { allLessons, getLesson, getPhase } from '../../data/curriculum';
 import { getResource } from '../../data/resources';
 import { useAppState } from '../../hooks/useAppState';
-import { checkpointHref, lessonHref, phaseHref } from '../../hooks/useHashRoute';
+import { checkpointHref, examHref, lessonHref, phaseHref } from '../../hooks/useHashRoute';
 import { formatDate, formatMinutes } from '../../lib/dates';
 import { getCheckpointStatus, getNextStep } from '../../lib/progress';
 import type { Resource } from '../../types/curriculum';
@@ -97,6 +97,14 @@ export function LessonPage({ lessonId }: { lessonId: string }) {
                 {step.lesson.title}
               </a>
               . You can still continue here.
+            </span>
+          ) : step.kind === 'final' ? (
+            <span>
+              You haven't passed the{' '}
+              <a href={examHref(step.phase.id)} className="text-accent hover:text-accent-strong">
+                Phase {step.phase.number} final exam
+              </a>{' '}
+              yet. It's the recommended next step, but you can still continue here.
             </span>
           ) : (
             <span>

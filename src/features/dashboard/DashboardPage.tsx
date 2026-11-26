@@ -1,9 +1,11 @@
-import { ArrowRight, Award, CalendarCheck, CheckCircle2, Flag, Flame, History, Hourglass, PartyPopper } from 'lucide-react';
+import { AlarmClock, ArrowRight, Award, CalendarCheck, CheckCircle2, Flag, Flame, GraduationCap, History, Hourglass, PartyPopper } from 'lucide-react';
 import { cx, Panel, ProgressBar, ProgressRing, SectionTitle, StatTile, buttonClass } from '../../components/ui';
 import { curriculum, getLesson } from '../../data/curriculum';
 import { allMilestones } from '../../data/milestones';
 import { useAppState } from '../../hooks/useAppState';
-import { checkpointHref, lessonHref, phaseHref } from '../../hooks/useHashRoute';
+import { checkpointHref, examHref, lessonHref, phaseHref } from '../../hooks/useHashRoute';
+import { formatCountdown, getNextFinal, sittingLabel } from '../../lib/exams';
+import { fmtDate } from '../exams/dates';
 import { formatMinutes, todayKey, weekStartKey } from '../../lib/dates';
 import {
   currentStreak,
@@ -27,7 +29,8 @@ export function DashboardPage() {
   const phase = getCurrentPhase(state);
   const phaseProgress = getPhaseProgress(state, phase);
   const step = getNextStep(state);
-  const nextHref = step ? (step.kind === 'lesson' ? lessonHref(step.lesson.id) : checkpointHref(step.phase.id)) : null;
+  const nextHref = step ? (step.kind === 'lesson' ? lessonHref(step.lesson.id) : step.kind === 'checkpoint' ? checkpointHref(step.phase.id) : examHref(step.phase.id)) : null;
+  const nextFinal = getNextFinal(state);
   const nextLessonId = step?.kind === 'lesson' ? step.lesson.id : undefined;
   const lastViewed = state.lastViewedLessonId ? getLesson(state.lastViewedLessonId) : undefined;
   const showResume = lastViewed && lastViewed.id !== nextLessonId && !state.completedLessons[lastViewed.id];
@@ -53,7 +56,7 @@ export function DashboardPage() {
         </div>
         {step && nextHref ? (
           <a href={nextHref} className={cx(buttonClass('primary'), 'h-10 px-5')}>
-            {overall.lessonsCompleted === 0 ? 'Start learning' : step.kind === 'checkpoint' ? 'Take the checkpoint' : 'Continue learning'}{' '}
+            {overall.lessonsCompleted === 0 ? 'Start learning' : step.kind === 'checkpoint' ? 'Take the checkpoint' : step.kind === 'final' ? 'Sit the final exam' : 'Continue learning'}{' '}
             <ArrowRight className="size-4" />
           </a>
         ) : (
@@ -109,6 +112,15 @@ export function DashboardPage() {
                 Phase {step.phase.number} · Lesson {step.lesson.number} · ~{formatMinutes(step.lesson.estimatedMinutes)}
               </p>
             </>
+          ) : step?.kind === 'final' ? (
+            <>
+              <p className="text-[12px] text-subtle">Recommended next step</p>
+              <a href={examHref(step.phase.id)} className="group mt-1 flex items-center gap-2">
+                <GraduationCap className="size-4 shrink-0 text-accent" />
+                <span className="truncate font-medium group-hover:text-accent-strong">Phase {step.phase.number} final exam</span>
+              </a>
+              <p className="mt-1 text-[13px] text-muted">You are regular in {step.phase.title}. Sit the final to complete the phase.</p>
+            </>
           ) : step?.kind === 'checkpoint' ? (
             <>
               <p className="text-[12px] text-subtle">Recommended next step</p>
@@ -129,12 +141,46 @@ export function DashboardPage() {
               <PartyPopper className="mt-0.5 size-5 text-accent" />
               <div>
                 <p className="font-medium">Roadmap complete</p>
-                <p className="text-[13px] text-muted">Every lesson and checkpoint is done. Keep building Lyra.</p>
+                <p className="text-[13px] text-muted">Every lesson, checkpoint and final is done. Keep building Lyra.</p>
               </div>
             </div>
           )}
         </div>
       </Panel>
+
+      {state.examPlan ? (
+        nextFinal && (
+          <a
+            href={examHref(nextFinal.phase.id)}
+            className={cx(
+              'mb-4 flex items-center gap-3 rounded-xl border px-4 py-3 text-[13px] transition-colors hover:bg-surface-2',
+              nextFinal.daysLeft <= 3 ? 'border-accent/40 bg-accent-soft/40' : 'border-line bg-surface',
+            )}
+          >
+            <AlarmClock className={cx('size-4 shrink-0', nextFinal.daysLeft < 0 ? 'text-danger' : 'text-accent')} />
+            <span className="min-w-0 flex-1">
+              <span className="text-subtle">Next final: </span>
+              <span className="font-medium">
+                Phase {nextFinal.phase.number} · {nextFinal.phase.title}
+              </span>
+              <span className="text-subtle">
+                {' '}
+                · {sittingLabel(nextFinal.sitting)} by {fmtDate(nextFinal.deadline)} ({formatCountdown(nextFinal.daysLeft)})
+              </span>
+            </span>
+            <ArrowRight className="size-4 shrink-0 text-subtle" />
+          </a>
+        )
+      ) : (
+        <a href="#/exams" className="mb-4 flex items-center gap-3 rounded-xl border border-accent/40 bg-accent-soft/40 px-4 py-3 text-[13px] transition-colors hover:bg-surface-2">
+          <GraduationCap className="size-4 shrink-0 text-accent" />
+          <span className="min-w-0 flex-1">
+            <span className="font-medium">Set up your final exams.</span>
+            <span className="text-muted"> Pick your pace and get a deadline for every phase.</span>
+          </span>
+          <ArrowRight className="size-4 shrink-0 text-subtle" />
+        </a>
+      )}
 
       {showResume && lastViewed && (
         <a href={lessonHref(lastViewed.id)} className="mb-4 flex items-center gap-3 rounded-xl border border-line bg-surface px-4 py-3 text-[13px] transition-colors hover:bg-surface-2">

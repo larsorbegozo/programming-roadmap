@@ -15,6 +15,18 @@ Every phase ends with a checkpoint. A phase only counts as completed when all it
   - React and React Native components are rendered with `react-test-renderer` and the tests press their buttons. React Native components (`View`, `Text`, `Pressable`, `FlatList`…) are lightweight stand-ins.
   - SQL runs on a real SQLite database (`sql.js`) and results are compared with a reference solution.
 
+## Final exams
+
+Each phase also has a timed final exam with a deadline, university style (`#/exams`):
+
+- You set a start date, weekly hours and an optional break; the app computes a deadline per phase from its estimated length (phases interrupted by the break start after it).
+- To sit a final you must be *regular* (all lessons done + checkpoint passed) and have passed the previous phase's final.
+- One attempt per sitting, timed (30–60 min), new questions and problems. "Run examples" runs only visible tests; grading adds hidden tests. A problem earns partial credit only if the starter was changed and an example test passes.
+- Grade 1–10, pass with 4 (60%). Fail or miss → retake one week later. Fail the retake → the phase is *libre*: a new sitting every week, and every later deadline moves back a week.
+- A phase is completed only when lessons, checkpoint and final are all done.
+
+Final exam content lives in `src/data/finals/`.
+
 Content lives in `src/data/checkpoints/p0.ts` … `p11.ts`. In development, run `window.__lyraValidate()` in the browser console: it checks that every reference solution passes all its tests and every starter fails at least one.
 
 ## Run locally

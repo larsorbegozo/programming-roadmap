@@ -1,7 +1,8 @@
 import { allExerciseIds, allLessons, curriculum } from '../data/curriculum';
 import { checkpoints as checkpointDefs } from '../data/checkpoints';
 import { allMilestones } from '../data/milestones';
-import type { AppState, CheckpointProgress, StudyCategory, StudySession } from '../types/state';
+import { finals } from '../data/finals';
+import type { ActiveExam, AppState, CheckpointProgress, ExamAnswer, ExamAttempt, ExamPlan, StudyCategory, StudySession } from '../types/state';
 import { isValidDateKey } from './dates';
 
 export const MIN_WEEKLY_HOURS = 1;
@@ -21,6 +22,9 @@ export function createInitialState(): AppState {
     currentPhaseId: null,
     achievements: {},
     checkpoints: {},
+    examPlan: null,
+    examAttempts: {},
+    activeExam: null,
     settings: { weeklyHoursTarget: 10 },
   };
 }
@@ -158,6 +162,127 @@ function validateCheckpoints(value: unknown, errors: string[], warnings: string[
   return result;
 }
 
+function isExamAnswer(v: unknown): v is ExamAnswer {
+  return (typeof v === 'number' && Number.isInteger(v)) || typeof v === 'string' || (Array.isArray(v) && v.every((x) => typeof x === 'number' && Number.isInteger(x)));
+}
+
+function isNumberRecord(v: unknown, min: number, max: number): v is Record<string, number> {
+  return isRecord(v) && Object.values(v).every((x) => typeof x === 'number' && x >= min && x <= max);
+}
+
+function validateExamPlan(value: unknown, errors: string[]): ExamPlan | null {
+  if (value === undefined || value === null) return null;
+  if (!isRecord(value) || !isIsoDate(value.createdAt) || !isValidDateKey(value.startDate) || typeof value.hoursPerWeek !== 'number' || !isRecord(value.units)) {
+    errors.push('"examPlan" is invalid.');
+    return null;
+  }
+  if ((value.breakStart !== undefined && !isValidDateKey(value.breakStart)) || (value.breakEnd !== undefined && !isValidDateKey(value.breakEnd))) {
+    errors.push('"examPlan" break dates are invalid.');
+    return null;
+  }
+  const units: ExamPlan['units'] = {};
+  for (const phase of curriculum) {
+    const u = value.units[phase.id];
+    if (!isRecord(u) || !isValidDateKey(u.start) || !isValidDateKey(u.deadline)) {
+      errors.push(`"examPlan.units.${phase.id}" is missing or invalid.`);
+      return null;
+    }
+    units[phase.id] = { start: u.start, deadline: u.deadline };
+  }
+  return {
+    createdAt: value.createdAt as string,
+    startDate: value.startDate as string,
+    hoursPerWeek: value.hoursPerWeek,
+    ...(value.breakStart && value.breakEnd ? { breakStart: value.breakStart as string, breakEnd: value.breakEnd as string } : {}),
+    units,
+  };
+}
+
+function validateExamAttempts(value: unknown, errors: string[], warnings: string[]): Record<string, ExamAttempt[]> {
+  const result: Record<string, ExamAttempt[]> = {};
+  if (value === undefined) return result;
+  if (!isRecord(value)) {
+    errors.push('"examAttempts" must be an object.');
+    return result;
+  }
+  let unknown = 0;
+  for (const [phaseId, list] of Object.entries(value)) {
+    if (!finals[phaseId]) {
+      unknown++;
+      continue;
+    }
+    if (!Array.isArray(list)) {
+      errors.push(`"examAttempts.${phaseId}" must be a list.`);
+      continue;
+    }
+    const attempts: ExamAttempt[] = [];
+    for (const a of list) {
+      if (
+        !isRecord(a) ||
+        typeof a.sitting !== 'number' ||
+        !Number.isInteger(a.sitting) ||
+        a.sitting < 0 ||
+        !isIsoDate(a.startedAt) ||
+        !isIsoDate(a.submittedAt) ||
+        typeof a.percent !== 'number' ||
+        a.percent < 0 ||
+        a.percent > 100 ||
+        typeof a.grade !== 'number' ||
+        a.grade < 1 ||
+        a.grade > 10 ||
+        typeof a.passed !== 'boolean' ||
+        !isRecord(a.questionResults) ||
+        !Object.values(a.questionResults).every((x) => typeof x === 'boolean') ||
+        !isNumberRecord(a.problemScores, 0, 1)
+      ) {
+        errors.push(`"examAttempts.${phaseId}" contains an invalid attempt.`);
+        break;
+      }
+      attempts.push({
+        sitting: a.sitting,
+        startedAt: a.startedAt as string,
+        submittedAt: a.submittedAt as string,
+        percent: a.percent,
+        grade: a.grade,
+        passed: a.passed,
+        questionResults: a.questionResults as Record<string, boolean>,
+        problemScores: a.problemScores,
+      });
+    }
+    result[phaseId] = attempts;
+  }
+  if (unknown > 0) warnings.push(`Ignored exam results for ${unknown} unknown phase${unknown === 1 ? '' : 's'}.`);
+  return result;
+}
+
+function validateActiveExam(value: unknown, errors: string[]): ActiveExam | null {
+  if (value === undefined || value === null) return null;
+  if (
+    !isRecord(value) ||
+    typeof value.phaseId !== 'string' ||
+    !finals[value.phaseId] ||
+    typeof value.sitting !== 'number' ||
+    !isIsoDate(value.startedAt) ||
+    !isRecord(value.answers) ||
+    !Object.values(value.answers).every(isExamAnswer) ||
+    !isRecord(value.code) ||
+    !Object.values(value.code).every((c) => typeof c === 'string' && c.length <= MAX_CODE_LENGTH) ||
+    !isRecord(value.orders) ||
+    !Object.values(value.orders).every((o) => Array.isArray(o) && o.every((x) => typeof x === 'number'))
+  ) {
+    errors.push('"activeExam" is invalid.');
+    return null;
+  }
+  return {
+    phaseId: value.phaseId,
+    sitting: value.sitting,
+    startedAt: value.startedAt as string,
+    answers: value.answers as Record<string, ExamAnswer>,
+    code: value.code as Record<string, string>,
+    orders: value.orders as Record<string, number[]>,
+  };
+}
+
 /**
  * Validates unknown data (from localStorage or an imported file) and returns a clean AppState.
  * Missing optional sections fall back to defaults; malformed sections are reported as errors.
@@ -179,6 +304,9 @@ export function validateState(input: unknown): ValidationResult {
   state.completedExercises = validateDateMap(raw.completedExercises, 'completedExercises', exerciseIds, errors, warnings);
   state.achievements = validateDateMap(raw.achievements, 'achievements', milestoneIds, errors, warnings);
   state.checkpoints = validateCheckpoints(raw.checkpoints, errors, warnings);
+  state.examPlan = validateExamPlan(raw.examPlan, errors);
+  state.examAttempts = validateExamAttempts(raw.examAttempts, errors, warnings);
+  state.activeExam = validateActiveExam(raw.activeExam, errors);
 
   if (raw.notes !== undefined) {
     if (!isRecord(raw.notes)) errors.push('"notes" must be an object.');

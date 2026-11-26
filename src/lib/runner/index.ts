@@ -40,8 +40,21 @@ function report(results: TestResult[], response: Partial<WorkerResponse> = {}): 
   };
 }
 
-/** Run the learner's code for a problem against all of its tests. */
-export async function runProblem(problem: CodeProblem, code: string): Promise<RunReport> {
+export interface RunOptions {
+  /** Final exams: false runs only the example (visible) tests. Defaults to true. */
+  includeHidden?: boolean;
+}
+
+/** Run the learner's code for a problem against its tests. */
+export async function runProblem(fullProblem: CodeProblem, code: string, options: RunOptions = {}): Promise<RunReport> {
+  const includeHidden = options.includeHidden ?? true;
+  const problem: CodeProblem = includeHidden
+    ? fullProblem
+    : {
+        ...fullProblem,
+        tests: fullProblem.tests.filter((t) => !t.hidden),
+        typeTests: fullProblem.typeTests?.filter((t) => !t.hidden),
+      };
   try {
     if (problem.language === 'sql') {
       const response = await runInWorker(

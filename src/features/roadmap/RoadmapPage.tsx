@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ArrowRight, Award, ChevronDown, Clock, SearchX } from 'lucide-react';
+import { ArrowRight, Award, ChevronDown, Clock, GraduationCap, SearchX } from 'lucide-react';
 import { SearchInput } from '../../components/SearchInput';
 import { cx, EmptyState, PageHeader, ProgressBar, SegmentedControl } from '../../components/ui';
 import { curriculum } from '../../data/curriculum';
@@ -8,6 +8,7 @@ import { phaseHref } from '../../hooks/useHashRoute';
 import { getCurrentPhase, getNextLesson, getNextStep, getPhaseProgress, isLessonComplete } from '../../lib/progress';
 import type { Lesson } from '../../types/curriculum';
 import { CheckpointRow } from '../checkpoints/CheckpointRow';
+import { FinalRow } from '../exams/FinalRow';
 import { LessonRow } from './LessonRow';
 import { PhaseStatusBadge } from './PhaseStatus';
 
@@ -127,6 +128,11 @@ export function RoadmapPage() {
                           · <Award className="size-3" /> checkpoint {progress.checkpointPassed ? 'passed' : 'pending'}
                         </span>
                       )}
+                      {progress.hasFinal && (
+                        <span className={cx('inline-flex items-center gap-1', progress.finalPassed && 'text-success')}>
+                          · <GraduationCap className="size-3" /> final {progress.finalPassed ? 'passed' : 'pending'}
+                        </span>
+                      )}
                     </span>
                     <span className="mt-3 flex items-center gap-3">
                       <ProgressBar value={progress.percent} tone={progress.status === 'completed' ? 'success' : 'accent'} label={`Phase ${phase.number} progress`} />
@@ -161,6 +167,7 @@ export function RoadmapPage() {
                         <LessonRow key={lesson.id} lesson={lesson} isNext={lesson.id === nextLesson?.id && step?.kind === 'lesson'} />
                       ))}
                       {!filtering && <CheckpointRow phase={phase} isNext={step?.kind === 'checkpoint' && step.phase.id === phase.id} />}
+                      {!filtering && <FinalRow phase={phase} isNext={step?.kind === 'final' && step.phase.id === phase.id} />}
                     </ul>
                   </div>
                 )}
