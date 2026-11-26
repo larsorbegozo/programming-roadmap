@@ -69,6 +69,7 @@ How it works (`src/lib/cloud/`):
 - The cloud stores one JSON document per user with a `revision` counter. Saving is compare-and-swap, so one device can never silently overwrite another's newer work.
 - Local changes upload about 2 seconds after they happen. Other devices pick them up when the window gets focus, every 45 seconds while visible, and on reconnect.
 - If both devices changed things before syncing, the two copies are **merged** (union of lessons, sessions, attempts, best scores…); see `merge.ts` for the rules and the one known limitation (a deletion made on both devices at once can come back).
+- App state lives in a small store (`src/lib/store.ts`) whose `getState()` is always exact, so a sync pass can never read a copy that React has not caught up with yet (that once let an older document overwrite a newer one in the cloud for a moment).
 - The cloud copy is validated before it is adopted, and the previous local copy is kept under `lyra-roadmap:v1:before-sync-backup`.
 - Run `npm test` for the sync engine tests (a fake cloud and two simulated devices).
 

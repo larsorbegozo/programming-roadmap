@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { AppState } from '../../types/state';
-import { AUTH_STORAGE_KEY, SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from './config';
+import { AUTH_STORAGE_KEY, SUPABASE_PROJECT_REF, SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from './config';
 import type { RemoteDoc, RemoteStore } from './engine';
 
 /** The Supabase library is loaded on demand, so visitors who never sign in don't download it. */
@@ -57,8 +57,11 @@ export function toCloudError(err: unknown): CloudError {
     return new CloudError("Supabase's built-in email only sends to members of your Supabase organization. Use that address, or sign in with a password.", 'other');
   if (/rate limit|too many requests|after \d+ seconds/i.test(message))
     return new CloudError("Too many emails requested. Supabase's built-in email allows only a few per hour. Wait a while, or sign in with a password.", 'other');
-  if (/invalid login credentials/i.test(message))
-    return new CloudError('Wrong email or password. The user must exist in Supabase → Authentication → Users.', 'other');
+  if (/invalid login credentials/i.test(message) || e.code === 'invalid_credentials')
+    return new CloudError(
+      `Supabase says the email or password is wrong (${e.code ?? 'invalid_credentials'}, status ${e.status ?? 400}). This app is signing in to the Supabase project “${SUPABASE_PROJECT_REF}”: the user must exist in that project (Authentication → Users), with exactly this email.`,
+      'other',
+    );
   if (/email not confirmed/i.test(message))
     return new CloudError('This user is not confirmed yet. In Supabase → Authentication → Users, open the user and confirm it (or recreate it with Auto Confirm User ticked).', 'other');
   if (/signups? (not allowed|are disabled)|signup is disabled/i.test(message))

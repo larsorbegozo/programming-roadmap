@@ -12,3 +12,12 @@ export const AUTH_STORAGE_KEY = 'lyra-roadmap:auth';
 export const SYNC_META_KEY = 'lyra-roadmap:sync';
 
 export const isCloudConfigured = SUPABASE_URL.startsWith('https://') && SUPABASE_PUBLISHABLE_KEY.startsWith('sb_publishable_');
+
+/** The project's short id (the first part of its URL), shown in the UI so it can be compared with the dashboard. */
+export const SUPABASE_PROJECT_REF = (() => {
+  try {
+    return new URL(SUPABASE_URL).hostname.split('.')[0] ?? '';
+  } catch {
+    return '';
+  }
+})();

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { curriculum } from '../../data/curriculum';
 import type { AppState } from '../../types/state';
 import { reducer } from '../reducer';
+import { createAppStore } from '../store';
 import { createInitialState } from '../validation';
 import { EMPTY_BASE, SyncError, isDirty, reconcileResult, serialize, syncOnce, type RemoteDoc, type RemoteStore, type SyncBase } from './engine';
 import { hasProgress, mergeStates } from './merge';
@@ -336,5 +337,38 @@ describe('applying a sync result through the reducer', () => {
     const afterTick = reducer(atStart, { type: 'toggleLesson', lessonId: L(2) });
     const result = reducer(afterTick, { type: 'applyRemote', snapshotJson: snapshot, state: remote });
     expect(Object.keys(result.completedLessons).sort()).toEqual([L(0), L(1), L(2)].sort());
+  });
+});
+
+describe('the app store', () => {
+  it('returns the newest state immediately after every dispatch', () => {
+    const store = createAppStore(createInitialState());
+    store.dispatch({ type: 'toggleLesson', lessonId: L(0) });
+    expect(Object.keys(store.getState().completedLessons)).toEqual([L(0)]);
+  });
+
+  it('regression: a second sync read right after a merge was applied sees the merged state, not an older copy', () => {
+    // Device B: its own change (terminal) while offline, then the sync merges in A's lessons.
+    const store = createAppStore(createInitialState());
+    store.dispatch({ type: 'toggleLesson', lessonId: L(5) });
+    const snapshot = serialize(store.getState());
+    const merged = createInitialState();
+    merged.completedLessons = { [L(1)]: t(1), [L(2)]: t(2), [L(5)]: t(3) };
+
+    store.dispatch({ type: 'applyRemote', snapshotJson: snapshot, state: merged });
+    // A follow-up sync pass runs in the same tick, before any re-render: it must see all three lessons.
+    expect(Object.keys(store.getState().completedLessons).sort()).toEqual([L(1), L(2), L(5)].sort());
+    expect(isDirty(store.getState(), { revision: 7, json: serialize(merged) })).toBe(false);
+  });
+
+  it('notifies subscribers once per change and not for no-ops', () => {
+    const store = createAppStore(createInitialState());
+    let calls = 0;
+    const off = store.subscribe(() => calls++);
+    store.dispatch({ type: 'updateSettings', settings: { weeklyHoursTarget: 12 } });
+    store.dispatch({ type: 'viewLesson', lessonId: 'does-not-exist' });
+    off();
+    store.dispatch({ type: 'updateSettings', settings: { weeklyHoursTarget: 14 } });
+    expect(calls).toBe(1);
   });
 });

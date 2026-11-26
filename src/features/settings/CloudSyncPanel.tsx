@@ -1,7 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Check, Cloud, CloudOff, Copy, Loader2, LogOut, RefreshCw } from 'lucide-react';
+import { Check, Cloud, CloudOff, Copy, Eye, EyeOff, Loader2, LogOut, RefreshCw } from 'lucide-react';
 import { Button, Panel, SegmentedControl, cx, inputClass } from '../../components/ui';
 import { useCloudSync } from '../../hooks/useCloudSync';
+import { SUPABASE_PROJECT_REF } from '../../lib/cloud/config';
 import { formatDate } from '../../lib/dates';
 import schemaSql from '../../../supabase/schema.sql?raw';
 
@@ -238,6 +239,11 @@ function SignIn() {
         />
       </div>
       {mode === 'password' ? <PasswordSignIn /> : <EmailCodeSignIn />}
+      {SUPABASE_PROJECT_REF && (
+        <p className="border-t border-line px-5 py-3 text-[12px] text-subtle">
+          Connected to Supabase project <span className="font-mono text-muted">{SUPABASE_PROJECT_REF}</span>. The user must be created in this project.
+        </p>
+      )}
     </div>
   );
 }
@@ -246,6 +252,7 @@ function PasswordSignIn() {
   const cloud = useCloudSync();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const valid = /^\S+@\S+\.\S+$/.test(email.trim()) && password.length >= 6;
@@ -258,7 +265,9 @@ function PasswordSignIn() {
     try {
       await cloud.signInWithPassword(email, password);
     } catch (err) {
-      setProblem(err instanceof Error ? err.message : 'Could not sign in.');
+      const base = err instanceof Error ? err.message : 'Could not sign in.';
+      const spaces = password !== password.trim() ? ' Your password starts or ends with a space.' : '';
+      setProblem(base + spaces);
       setBusy(false);
     }
   };
@@ -269,10 +278,32 @@ function PasswordSignIn() {
         Email
         <input type="email" name="username" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username" placeholder="you@example.com" className={cx(inputClass, 'max-w-sm')} />
       </label>
-      <label className="flex flex-col gap-1.5 text-[12px] text-subtle">
-        Password
-        <input type="password" name="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" className={cx(inputClass, 'max-w-sm')} />
-      </label>
+      <div className="flex flex-col gap-1.5 text-[12px] text-subtle">
+        <label htmlFor="cloud-password">Password</label>
+        <div className="relative max-w-sm">
+          <input
+            id="cloud-password"
+            type={showPassword ? 'text' : 'password'}
+            name="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="current-password"
+            autoCapitalize="off"
+            autoCorrect="off"
+            spellCheck={false}
+            className={cx(inputClass, 'pr-10')}
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword((v) => !v)}
+            aria-label={showPassword ? 'Hide password' : 'Show password'}
+            aria-pressed={showPassword}
+            className="absolute right-1.5 top-1/2 grid size-7 -translate-y-1/2 place-items-center rounded-md text-subtle hover:bg-surface-3 hover:text-fg"
+          >
+            {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+          </button>
+        </div>
+      </div>
       {problem && (
         <p role="alert" className="text-[13px] text-danger">
           {problem}

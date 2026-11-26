@@ -37,7 +37,7 @@ function hasStoredSession(): boolean {
 }
 
 export function CloudSyncProvider({ children }: { children: ReactNode }) {
-  const { state, dispatch } = useAppState();
+  const { state, dispatch, getState } = useAppState();
   // Visitors who never signed in never download the Supabase library.
   const [clientNeeded, setClientNeeded] = useState(() => isCloudConfigured && hasStoredSession());
   const [status, setStatus] = useState<CloudStatus>(!isCloudConfigured ? 'disabled' : clientNeeded ? 'checking' : 'signed-out');
@@ -45,8 +45,6 @@ export function CloudSyncProvider({ children }: { children: ReactNode }) {
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const stateRef = useRef(state);
-  stateRef.current = state;
   const baseRef = useRef<SyncBase>(EMPTY_BASE);
   const userRef = useRef<{ id: string } | null>(null);
   const running = useRef(false);
@@ -110,28 +108,32 @@ export function CloudSyncProvider({ children }: { children: ReactNode }) {
       const client = await getClient();
       const remote = new SupabaseRemote(client, current.id);
 
-      if (light && baseRef.current.revision !== null && !isDirty(stateRef.current, baseRef.current)) {
+      // Always the newest state: never a copy that React has not caught up with yet.
+      const local = getState();
+      if (light && baseRef.current.revision !== null && !isDirty(local, baseRef.current)) {
         const revision = await remote.fetchRevision();
         if (revision === baseRef.current.revision) {
           setStatus('synced');
           setError(null);
           return;
         }
-      } else if (!light || isDirty(stateRef.current, baseRef.current)) {
+      } else if (!light || isDirty(local, baseRef.current)) {
         setStatus('syncing');
       }
 
-      const snapshot = serialize(stateRef.current);
-      const result = await syncOnce(stateRef.current, baseRef.current, remote);
+      const syncState = getState();
+      const snapshot = serialize(syncState);
+      const result = await syncOnce(syncState, baseRef.current, remote);
       if (result.state) {
         // Keep what was on this device, in case the merge ever surprises the learner.
-        if (hasProgress(stateRef.current)) {
+        if (hasProgress(syncState)) {
           try {
             window.localStorage.setItem(BACKUP_KEY, snapshot);
           } catch {
             /* ignore */
           }
         }
+        // Decided inside the reducer against the newest state, so edits made meanwhile are kept.
         dispatch({ type: 'applyRemote', snapshotJson: snapshot, state: result.state });
       }
       baseRef.current = result.base;
@@ -151,7 +153,7 @@ export function CloudSyncProvider({ children }: { children: ReactNode }) {
         void runSync(false);
       }
     }
-  }, [dispatch]);
+  }, [dispatch, getState]);
 
   // ---- First sync after sign-in ----
   const userId = user?.id ?? null;
