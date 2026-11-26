@@ -1,9 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { AUTH_STORAGE_KEY, isCloudConfigured } from '../lib/cloud/config';
-import { EMPTY_BASE, SyncError, isDirty, reconcileResult, serialize, syncOnce, type SyncBase } from '../lib/cloud/engine';
+import { EMPTY_BASE, SyncError, isDirty, serialize, syncOnce, type SyncBase } from '../lib/cloud/engine';
 import { hasProgress } from '../lib/cloud/merge';
 import { clearMeta, loadMeta, saveMeta } from '../lib/cloud/meta';
-import { SupabaseRemote, getClient, sendLoginCode, signOutOfCloud, toCloudError, verifyLoginCode } from '../lib/cloud/supabase';
+import { SupabaseRemote, getClient, sendLoginCode, signInWithPassword, signOutOfCloud, toCloudError, verifyLoginCode } from '../lib/cloud/supabase';
 import { STORAGE_KEY } from '../lib/storage';
 import { useAppState } from './useAppState';
 
@@ -16,6 +16,7 @@ interface CloudSyncValue {
   error: string | null;
   sendCode: (email: string) => Promise<void>;
   verifyCode: (email: string, code: string) => Promise<void>;
+  signInWithPassword: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   syncNow: () => Promise<void>;
 }
@@ -122,8 +123,7 @@ export function CloudSyncProvider({ children }: { children: ReactNode }) {
 
       const snapshot = serialize(stateRef.current);
       const result = await syncOnce(stateRef.current, baseRef.current, remote);
-      const next = reconcileResult(stateRef.current, snapshot, result);
-      if (next) {
+      if (result.state) {
         // Keep what was on this device, in case the merge ever surprises the learner.
         if (hasProgress(stateRef.current)) {
           try {
@@ -132,7 +132,7 @@ export function CloudSyncProvider({ children }: { children: ReactNode }) {
             /* ignore */
           }
         }
-        dispatch({ type: 'replaceState', state: next });
+        dispatch({ type: 'applyRemote', snapshotJson: snapshot, state: result.state });
       }
       baseRef.current = result.base;
       const now = new Date().toISOString();
@@ -199,6 +199,12 @@ export function CloudSyncProvider({ children }: { children: ReactNode }) {
     setClientNeeded(true);
   }, []);
 
+  const passwordSignIn = useCallback(async (email: string, password: string) => {
+    await signInWithPassword(email.trim(), password);
+    setStatus('checking');
+    setClientNeeded(true);
+  }, []);
+
   const signOut = useCallback(async () => {
     await signOutOfCloud();
     clearMeta();
@@ -213,8 +219,8 @@ export function CloudSyncProvider({ children }: { children: ReactNode }) {
   const syncNow = useCallback(() => runSync(false), [runSync]);
 
   const value = useMemo<CloudSyncValue>(
-    () => ({ status, email: user?.email ?? null, lastSyncedAt, error, sendCode, verifyCode, signOut, syncNow }),
-    [status, user, lastSyncedAt, error, sendCode, verifyCode, signOut, syncNow],
+    () => ({ status, email: user?.email ?? null, lastSyncedAt, error, sendCode, verifyCode, signInWithPassword: passwordSignIn, signOut, syncNow }),
+    [status, user, lastSyncedAt, error, sendCode, verifyCode, passwordSignIn, signOut, syncNow],
   );
   return <CloudSyncContext.Provider value={value}>{children}</CloudSyncContext.Provider>;
 }

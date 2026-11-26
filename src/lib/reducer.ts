@@ -1,5 +1,7 @@
 import { getLesson } from '../data/curriculum';
 import type { ActiveExam, AppState, CheckpointProgress, ExamAnswer, ExamAttempt, ExamPlan, Settings, StudySession } from '../types/state';
+import { serialize } from './cloud/engine';
+import { mergeStates } from './cloud/merge';
 import { createInitialState } from './validation';
 
 export type Action =
@@ -21,6 +23,7 @@ export type Action =
   | { type: 'updateExamAnswer'; questionId: string; answer: ExamAnswer | null }
   | { type: 'updateExamCode'; problemId: string; code: string }
   | { type: 'finishExam'; phaseId: string; attempt: ExamAttempt }
+  | { type: 'applyRemote'; snapshotJson: string; state: AppState }
   | { type: 'replaceState'; state: AppState }
   | { type: 'reset' };
 
@@ -113,6 +116,9 @@ export function reducer(state: AppState, action: Action): AppState {
       const attempts = [...(state.examAttempts[action.phaseId] ?? []), action.attempt];
       return { ...state, activeExam: null, examAttempts: { ...state.examAttempts, [action.phaseId]: attempts } };
     }
+    case 'applyRemote':
+      // Decided here, against the newest state, so an edit made while a sync was in flight is never overwritten.
+      return serialize(state) === action.snapshotJson ? action.state : mergeStates(state, action.state, 'local');
     case 'replaceState':
       return action.state;
     case 'reset':

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { curriculum } from '../../data/curriculum';
 import type { AppState } from '../../types/state';
+import { reducer } from '../reducer';
 import { createInitialState } from '../validation';
 import { EMPTY_BASE, SyncError, isDirty, reconcileResult, serialize, syncOnce, type RemoteDoc, type RemoteStore, type SyncBase } from './engine';
 import { hasProgress, mergeStates } from './merge';
@@ -313,5 +314,27 @@ describe('two devices (Mac and the other one)', () => {
     a.edit((s) => (s.completedLessons[L(2)] = t(3)));
     const next = reconcileResult(a.state, snapshot, result)!;
     expect(Object.keys(next.completedLessons).sort()).toEqual([L(0), L(1), L(2)].sort());
+  });
+});
+
+describe('applying a sync result through the reducer', () => {
+  it('uses the remote state as is when nothing changed meanwhile', () => {
+    const local = createInitialState();
+    const remote = structuredClone(local);
+    remote.completedLessons[L(1)] = t(2);
+    expect(reducer(local, { type: 'applyRemote', snapshotJson: serialize(local), state: remote })).toBe(remote);
+  });
+
+  it('keeps an edit made after the sync started, even if the UI has not re-rendered yet', () => {
+    const atStart = createInitialState();
+    atStart.completedLessons[L(0)] = t(1);
+    const snapshot = serialize(atStart);
+    const remote = structuredClone(atStart);
+    remote.completedLessons[L(1)] = t(2); // the other device ticked a lesson
+
+    // The learner ticks a lesson while the request is in flight: the reducer sees it first.
+    const afterTick = reducer(atStart, { type: 'toggleLesson', lessonId: L(2) });
+    const result = reducer(afterTick, { type: 'applyRemote', snapshotJson: snapshot, state: remote });
+    expect(Object.keys(result.completedLessons).sort()).toEqual([L(0), L(1), L(2)].sort());
   });
 });

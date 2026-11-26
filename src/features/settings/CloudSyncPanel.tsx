@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Check, Cloud, CloudOff, Copy, Loader2, LogOut, RefreshCw } from 'lucide-react';
-import { Button, Panel, cx, inputClass } from '../../components/ui';
+import { Button, Panel, SegmentedControl, cx, inputClass } from '../../components/ui';
 import { useCloudSync } from '../../hooks/useCloudSync';
 import { formatDate } from '../../lib/dates';
 import schemaSql from '../../../supabase/schema.sql?raw';
@@ -114,7 +114,7 @@ function SignedIn() {
   );
 }
 
-function SignIn() {
+function EmailCodeSignIn() {
   const cloud = useCloudSync();
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
@@ -216,6 +216,76 @@ function SignIn() {
         </Button>
       </div>
       <p className="text-[12px] text-subtle">No password. Your progress is stored privately and only you can read it. Until you sign in, everything stays in this browser.</p>
+    </form>
+  );
+}
+
+type SignInMode = 'password' | 'code';
+
+function SignIn() {
+  const [mode, setMode] = useState<SignInMode>('password');
+  return (
+    <div>
+      <div className="px-5 pt-4">
+        <SegmentedControl
+          label="Sign-in method"
+          value={mode}
+          onChange={setMode}
+          options={[
+            { value: 'password', label: 'Password' },
+            { value: 'code', label: 'Email code' },
+          ]}
+        />
+      </div>
+      {mode === 'password' ? <PasswordSignIn /> : <EmailCodeSignIn />}
+    </div>
+  );
+}
+
+function PasswordSignIn() {
+  const cloud = useCloudSync();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+  const valid = /^\S+@\S+\.\S+$/.test(email.trim()) && password.length >= 6;
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!valid || busy) return;
+    setBusy(true);
+    setProblem(null);
+    try {
+      await cloud.signInWithPassword(email, password);
+    } catch (err) {
+      setProblem(err instanceof Error ? err.message : 'Could not sign in.');
+      setBusy(false);
+    }
+  };
+
+  return (
+    <form onSubmit={submit} className="flex flex-col gap-3 px-5 py-4">
+      <label className="flex flex-col gap-1.5 text-[12px] text-subtle">
+        Email
+        <input type="email" name="username" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username" placeholder="you@example.com" className={cx(inputClass, 'max-w-sm')} />
+      </label>
+      <label className="flex flex-col gap-1.5 text-[12px] text-subtle">
+        Password
+        <input type="password" name="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" className={cx(inputClass, 'max-w-sm')} />
+      </label>
+      {problem && (
+        <p role="alert" className="text-[13px] text-danger">
+          {problem}
+        </p>
+      )}
+      <div>
+        <Button type="submit" variant="primary" disabled={!valid || busy}>
+          {busy && <Loader2 className="size-4 animate-spin" />} Sign in
+        </Button>
+      </div>
+      <p className="text-[12px] text-subtle">
+        The account is created by you in Supabase: <span className="text-muted">Authentication → Users → Add user → Create new user</span>, with “Auto Confirm User” ticked. No emails are involved.
+      </p>
     </form>
   );
 }

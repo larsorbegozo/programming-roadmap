@@ -47,6 +47,22 @@ export function toCloudError(err: unknown): CloudError {
   const message = e.message ?? String(err);
   if (typeof navigator !== 'undefined' && navigator.onLine === false) return new CloudError('You are offline.', 'offline');
   if (/failed to fetch|networkerror|load failed|network request failed/i.test(message)) return new CloudError('Cannot reach the cloud right now.', 'offline');
+  // Sign-in problems on Supabase's side, explained with the usual causes.
+  if (/error sending .*email/i.test(message))
+    return new CloudError(
+      `Supabase could not send the email (“${message}”). Usual causes: a typo in an email template (it must contain {{ .Token }} exactly), Supabase's built-in email only sending a few messages per hour, or only to members of your Supabase organization. Open Supabase → Logs → Auth for the exact reason, or sign in with a password instead.`,
+      'other',
+    );
+  if (/not authorized/i.test(message) && /email/i.test(message))
+    return new CloudError("Supabase's built-in email only sends to members of your Supabase organization. Use that address, or sign in with a password.", 'other');
+  if (/rate limit|too many requests|after \d+ seconds/i.test(message))
+    return new CloudError("Too many emails requested. Supabase's built-in email allows only a few per hour. Wait a while, or sign in with a password.", 'other');
+  if (/invalid login credentials/i.test(message))
+    return new CloudError('Wrong email or password. The user must exist in Supabase → Authentication → Users.', 'other');
+  if (/email not confirmed/i.test(message))
+    return new CloudError('This user is not confirmed yet. In Supabase → Authentication → Users, open the user and confirm it (or recreate it with Auto Confirm User ticked).', 'other');
+  if (/signups? (not allowed|are disabled)|signup is disabled/i.test(message))
+    return new CloudError('New sign-ups are disabled on your Supabase project and this email has no account yet. Create the user in Supabase → Authentication → Users.', 'other');
   if (e.code === 'PGRST205' || e.code === '42P01' || /schema cache|does not exist/i.test(message))
     return new CloudError('The cloud table is not set up yet. Run supabase/schema.sql in the Supabase SQL Editor.', 'needs-setup');
   if (e.status === 401 || e.status === 403 || e.code === 'PGRST301' || /jwt|not authenticated|invalid claim/i.test(message))
@@ -106,6 +122,12 @@ export async function sendLoginCode(email: string): Promise<void> {
 export async function verifyLoginCode(email: string, code: string): Promise<void> {
   const client = await getClient();
   const { error } = await client.auth.verifyOtp({ email, token: code, type: 'email' });
+  if (error) throw toCloudError(error);
+}
+
+export async function signInWithPassword(email: string, password: string): Promise<void> {
+  const client = await getClient();
+  const { error } = await client.auth.signInWithPassword({ email, password });
   if (error) throw toCloudError(error);
 }
 

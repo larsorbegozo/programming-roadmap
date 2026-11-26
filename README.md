@@ -58,9 +58,9 @@ Progress can sync between devices through a free [Supabase](https://supabase.com
 One-time setup in the Supabase dashboard:
 
 1. **SQL Editor**: run [`supabase/schema.sql`](supabase/schema.sql). It creates one `progress` table with Row Level Security, so each user can only read and write their own row.
-2. **Authentication → Email Templates**: in both **Magic Link** and **Confirm signup**, add `<p>Your code: <strong>{{ .Token }}</strong></p>`. The app signs in with that one-time code (no password).
-3. **Authentication → URL Configuration**: set **Site URL** to your deployed address.
-4. After you have signed in once: **Authentication → Sign In / Providers → turn off "Allow new users to sign up"**, so nobody else can create accounts on your project.
+2. **Create your user** (recommended, no emails involved): **Authentication → Users → Add user → Create new user**, with your email and a password, and **Auto Confirm User** ticked. The app signs in with them (**Settings → Cloud sync → Password**).
+3. *Optional, to sign in with an emailed code instead:* **Authentication → Email Templates**: in **Magic Link** and **Confirm signup**, add `<p>Your code: <strong>{{ .Token }}</strong></p>` (exactly like that, the name is case-sensitive), and set **Authentication → URL Configuration → Site URL** to your deployed address. Supabase's built-in email only sends a few messages per hour, and only to members of your Supabase organization; a typo in a template shows up as "Error sending confirmation email". See **Logs → Auth** for the reason.
+4. Then **Authentication → Sign In / Providers → turn off "Allow new users to sign up"**, so nobody else can create accounts on your project.
 
 The project URL and **publishable** key live in `src/lib/cloud/config.ts` (override with `VITE_SUPABASE_URL` / `VITE_SUPABASE_PUBLISHABLE_KEY`). They are public by design; never put the secret / `service_role` key in the app.
 
