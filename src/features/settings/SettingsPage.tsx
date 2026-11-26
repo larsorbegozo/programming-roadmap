@@ -6,6 +6,7 @@ import { useAppState } from '../../hooks/useAppState';
 import { todayKey } from '../../lib/dates';
 import { weeklyAllocation } from '../../lib/progress';
 import { buildExport, downloadFile } from '../../lib/storage';
+import { CloudSyncPanel } from './CloudSyncPanel';
 import { MAX_WEEKLY_HOURS, MIN_WEEKLY_HOURS, validateState } from '../../lib/validation';
 import type { AppState } from '../../types/state';
 
@@ -91,13 +92,15 @@ export function SettingsPage() {
 
   return (
     <>
-      <PageHeader title="Settings" description="Your progress is stored in this browser only. Export a backup regularly." />
+      <PageHeader title="Settings" description="Your progress is stored in this browser, and synced to every device you sign in on when cloud sync is on. Export a backup now and then." />
 
       {notice && (
         <div role="status" className="mb-4 rounded-lg border border-success/30 bg-success/10 px-4 py-2.5 text-[13px] text-success">
           {notice}
         </div>
       )}
+
+      <CloudSyncPanel />
 
       <Panel className="mb-6 divide-y divide-line">
         <Row
@@ -169,14 +172,14 @@ export function SettingsPage() {
       </Panel>
 
       <ConfirmDialog open={resetOpen} title="Reset all progress?" confirmLabel="Reset everything" tone="danger" onConfirm={confirmReset} onCancel={() => setResetOpen(false)}>
-        This deletes every completed lesson, checkpoint and exam result, your exam calendar, saved code, notes, study sessions and settings. It cannot be undone. Consider exporting a backup first.
+        This deletes every completed lesson, checkpoint and exam result, your exam calendar, saved code, notes, study sessions and settings. If cloud sync is on, the cloud copy is reset too and your other devices will receive the empty progress. It cannot be undone. Consider exporting a backup first.
       </ConfirmDialog>
 
       <ConfirmDialog open={pendingImport !== null} title="Replace current progress?" confirmLabel="Import" onConfirm={confirmImport} onCancel={() => setPendingImport(null)}>
         {pendingImport && importSummary && (
           <>
             <p>
-              <span className="text-fg">{pendingImport.fileName}</span> contains {importSummary.lessons} completed lessons, {importSummary.sessions} study sessions and {importSummary.notes} notes. Your current progress will be replaced.
+              <span className="text-fg">{pendingImport.fileName}</span> contains {importSummary.lessons} completed lessons, {importSummary.sessions} study sessions and {importSummary.notes} notes. Your current progress will be replaced, and if cloud sync is on the cloud copy and your other devices as well.
             </p>
             {pendingImport.warnings.length > 0 && (
               <ul className="mt-3 list-disc pl-5 text-[12px] text-subtle">

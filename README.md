@@ -51,6 +51,27 @@ One-time setup in the repository: **Settings → Pages → Build and deployment 
 
 Progress is saved per browser and per site address. Use **Settings → Export JSON** to back up, or to move progress between your local copy and the hosted site.
 
+## Cloud sync (Supabase)
+
+Progress can sync between devices through a free [Supabase](https://supabase.com) project. Without signing in, everything stays in the browser as before.
+
+One-time setup in the Supabase dashboard:
+
+1. **SQL Editor**: run [`supabase/schema.sql`](supabase/schema.sql). It creates one `progress` table with Row Level Security, so each user can only read and write their own row.
+2. **Authentication → Email Templates**: in both **Magic Link** and **Confirm signup**, add `<p>Your code: <strong>{{ .Token }}</strong></p>`. The app signs in with that one-time code (no password).
+3. **Authentication → URL Configuration**: set **Site URL** to your deployed address.
+4. After you have signed in once: **Authentication → Sign In / Providers → turn off "Allow new users to sign up"**, so nobody else can create accounts on your project.
+
+The project URL and **publishable** key live in `src/lib/cloud/config.ts` (override with `VITE_SUPABASE_URL` / `VITE_SUPABASE_PUBLISHABLE_KEY`). They are public by design; never put the secret / `service_role` key in the app.
+
+How it works (`src/lib/cloud/`):
+
+- The cloud stores one JSON document per user with a `revision` counter. Saving is compare-and-swap, so one device can never silently overwrite another's newer work.
+- Local changes upload about 2 seconds after they happen. Other devices pick them up when the window gets focus, every 45 seconds while visible, and on reconnect.
+- If both devices changed things before syncing, the two copies are **merged** (union of lessons, sessions, attempts, best scores…); see `merge.ts` for the rules and the one known limitation (a deletion made on both devices at once can come back).
+- The cloud copy is validated before it is adopted, and the previous local copy is kept under `lyra-roadmap:v1:before-sync-backup`.
+- Run `npm test` for the sync engine tests (a fake cloud and two simulated devices).
+
 ## Project structure
 
 ```
@@ -60,6 +81,7 @@ src/
   features/          One folder per screen: dashboard, roadmap, lessons, resources, planner, progress, settings
   hooks/             App state store (React context + reducer) and hash-based routing
   lib/               Pure logic: progress math, dates, storage, import validation, quiz grading
+  lib/cloud/         Cloud sync: merge rules, sync engine, Supabase adapter
   lib/runner/        Code runner: Web Worker, in-browser TypeScript compiler, content validator
   types/             TypeScript types for curriculum and saved state
 ```

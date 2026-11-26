@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
-import { BarChart3, CalendarCheck, GraduationCap, LayoutDashboard, Library, Map, Settings, Sparkles, X } from 'lucide-react';
+import { BarChart3, CalendarCheck, Cloud, CloudOff, GraduationCap, LayoutDashboard, Library, Map, Settings, Sparkles, X } from 'lucide-react';
 import { useAppState } from '../hooks/useAppState';
+import { useCloudSync, type CloudStatus } from '../hooks/useCloudSync';
 import { routeHref, type Route } from '../hooks/useHashRoute';
 import { getOverallProgress } from '../lib/progress';
 import { cx, ProgressBar } from './ui';
@@ -16,6 +17,33 @@ const navItems: Array<{ name: NavName; label: string; short: string; icon: typeo
   { name: 'progress', label: 'Progress', short: 'Progress', icon: BarChart3 },
   { name: 'settings', label: 'Settings', short: 'Settings', icon: Settings },
 ];
+
+const syncLabel: Record<CloudStatus, string> = {
+  disabled: '',
+  'signed-out': 'Not synced',
+  checking: 'Connecting…',
+  syncing: 'Syncing…',
+  synced: 'Synced',
+  offline: 'Offline',
+  'needs-setup': 'Sync setup needed',
+  error: 'Sync problem',
+};
+
+function SyncBadge({ className }: { className?: string }) {
+  const { status } = useCloudSync();
+  if (status === 'disabled') return null;
+  const bad = status === 'offline' || status === 'error' || status === 'needs-setup';
+  const Icon = bad ? CloudOff : Cloud;
+  return (
+    <a
+      href="#/settings"
+      title="Cloud sync settings"
+      className={cx('inline-flex items-center gap-1.5 text-[12px] transition-colors hover:text-fg', status === 'synced' ? 'text-success' : bad ? 'text-danger' : 'text-subtle', className)}
+    >
+      <Icon className="size-3.5" /> {syncLabel[status]}
+    </a>
+  );
+}
 
 function activeNav(route: Route): NavName {
   if (route.name === 'exam') return 'exams';
@@ -62,6 +90,7 @@ export function Layout({ route, children }: { route: Route; children: ReactNode 
           <p className="mt-2 text-[12px] text-subtle">
             {overall.lessonsCompleted} of {overall.lessonsTotal} lessons
           </p>
+          <SyncBadge className="mt-3" />
         </div>
       </aside>
 
@@ -73,7 +102,10 @@ export function Layout({ route, children }: { route: Route; children: ReactNode 
           </span>
           <span className="font-semibold tracking-tight">Lyra Roadmap</span>
         </a>
-        <span className="text-[12px] tabular-nums text-muted">{overall.percent}% complete</span>
+        <span className="flex items-center gap-3">
+          <SyncBadge />
+          <span className="text-[12px] tabular-nums text-muted">{overall.percent}%</span>
+        </span>
       </header>
 
       <main className="mx-auto w-full max-w-5xl px-4 pb-28 pt-6 sm:px-6 md:pb-12 md:pt-10 lg:px-10">

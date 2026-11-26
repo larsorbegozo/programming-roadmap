@@ -1,5 +1,6 @@
 import { Layout } from './components/Layout';
 import { AppStateProvider } from './hooks/useAppState';
+import { CloudSyncProvider } from './hooks/useCloudSync';
 import { useHashRoute, type Route } from './hooks/useHashRoute';
 import { CheckpointPage } from './features/checkpoints/CheckpointPage';
 import { DashboardPage } from './features/dashboard/DashboardPage';
@@ -42,9 +43,11 @@ export default function App() {
   const route = useHashRoute();
   return (
     <AppStateProvider>
-      <Layout route={route}>
-        <Page route={route} />
-      </Layout>
+      <CloudSyncProvider>
+        <Layout route={route}>
+          <Page route={route} />
+        </Layout>
+      </CloudSyncProvider>
     </AppStateProvider>
   );
 }
