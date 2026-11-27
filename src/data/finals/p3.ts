@@ -150,6 +150,17 @@ function describeExercise(exercise: Exercise): string {
         { name: 'Describes a flashcard', code: `expect(describeExercise({ kind: 'flashcard', front: 'Hund', back: 'dog' })).toBe('Flashcard: Hund');` },
         { name: 'Describes multiple choice', hidden: true, code: `expect(describeExercise({ kind: 'multiple-choice', prompt: 'Katze', options: ['cat', 'dog', 'cow'], answerIndex: 0 })).toBe('Multiple choice: Katze (3 options)');` },
         { name: 'Describes typing', hidden: true, code: `expect(describeExercise({ kind: 'typing', prompt: 'Brot', answer: 'bread' })).toBe('Typing: Brot');` },
+        {
+          name: 'Describes any exercise',
+          hidden: true,
+          code: `await sameAsRef('describeExercise', () => {
+          const kind = rand.pick(['flashcard', 'multiple-choice', 'typing']);
+          if (kind === 'flashcard') return [{ kind, front: rand.word(), back: rand.word() }];
+          if (kind === 'typing') return [{ kind, prompt: rand.word(), answer: rand.word() }];
+          const options = rand.list(rand.int(2, 6), () => rand.word());
+          return [{ kind, prompt: rand.word(), options, answerIndex: rand.int(0, options.length - 1) }];
+        }, 40);`,
+        },
       ],
       typeTests: [
         { name: 'Each exercise kind is accepted', code: `const a: Exercise = { kind: 'flashcard', front: 'Hund', back: 'dog' };\nconst b: Exercise = { kind: 'multiple-choice', prompt: 'p', options: ['a'], answerIndex: 0 };\nconst c: Exercise = { kind: 'typing', prompt: 'p', answer: 'a' };` },
@@ -217,6 +228,13 @@ function groupBy<T>(items: T[], getKey: (item: T) => string): Record<string, T[]
         { name: 'Groups by the key', code: `const g = groupBy(words, (w) => w.category); expect(g.animals.map((w) => w.id)).toEqual(['w1', 'w3']); expect(g.food.map((w) => w.id)).toEqual(['w2']);` },
         { name: 'Works with other item types', hidden: true, code: `expect(groupBy([1, 2, 3, 4], (n) => (n % 2 === 0 ? 'even' : 'odd'))).toEqual({ odd: [1, 3], even: [2, 4] });` },
         { name: 'Empty list → {}', hidden: true, code: `expect(groupBy([], (x) => String(x))).toEqual({});` },
+        {
+          name: 'Groups any items by any key',
+          hidden: true,
+          code: `const k = rand.int(2, 5);
+        const byRemainder = (n) => 'r' + (n % k);
+        await sameAsRef('groupBy', () => [rand.list(rand.int(0, 12), () => rand.int(0, 50)), byRemainder], 30);`,
+        },
       ],
       typeTests: [
         { name: 'Keeps the item type', code: `const ws: VocabularyWord[] = [];\nconst g = groupBy(ws, (w) => w.category);\nconst first: VocabularyWord | undefined = g['food']?.[0];` },

@@ -181,6 +181,28 @@ const typeIn = (r, value) => r.type(r.findAll('input')[0], value);`,
         { name: 'Matches the translation too', hidden: true, code: `const r = render(h(SearchableWordList, { words })); typeIn(r, 'brea'); expect(r.textOf(r.findAll('li')[0])).toContain('Brot');` },
         { name: 'No matches message', hidden: true, code: `const r = render(h(SearchableWordList, { words })); typeIn(r, 'zzz'); expect(r.text()).toContain('No matches'); expect(r.findAll('li')).toHaveLength(0); expect(r.text()).toContain('Showing 0 of 4');` },
         { name: 'The input is controlled', hidden: true, code: `const r = render(h(SearchableWordList, { words })); typeIn(r, 'Ku'); expect(r.findAll('input')[0].props.value).toBe('Ku');` },
+        {
+          name: 'Filters any list by any search',
+          hidden: true,
+          code: `const cap = (w) => w[0].toUpperCase() + w.slice(1);
+        for (let round = 0; round < 8; round++) {
+          const list = rand.distinct(rand.int(1, 8), () => cap(rand.word(4, 7))).map((term, i) => ({ id: 'id' + i, term, translation: rand.word(4, 7) }));
+          const source = rand.pick(list);
+          const text = rand.pick([source.term, source.translation]);
+          const start = rand.int(0, text.length - 2);
+          const fragment = text.slice(start, start + rand.int(1, 3));
+          const query = rand.pick([fragment, fragment.toUpperCase(), ' ' + fragment + ' ', rand.word(5, 6), '']);
+          const q = query.trim().toLowerCase();
+          const expected = list.filter((w) => w.term.toLowerCase().includes(q) || w.translation.toLowerCase().includes(q));
+          const r = render(h(SearchableWordList, { words: list }));
+          typeIn(r, query);
+          const shown = r.findAll('li').map((li) => r.textOf(li));
+          expect(shown.length).toBe(expected.length);
+          expected.forEach((w, i) => expect(shown[i]).toContain(w.term));
+          expect(r.text()).toContain('Showing ' + expected.length + ' of ' + list.length);
+          if (expected.length === 0) expect(r.text()).toContain('No matches');
+        }`,
+        },
       ],
     },
   ],

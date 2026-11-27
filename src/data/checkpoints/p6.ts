@@ -199,7 +199,10 @@ FROM words
 WHERE category = 'food'
 ORDER BY term;
 `,
-      tests: [{ name: 'Returns the food words, sorted by term', code: '' }],
+      tests: [
+        { name: 'Returns the food words, sorted by term', code: '' },
+        { name: 'Still correct with different data', code: `INSERT INTO words (id, term, translation, category) VALUES (8, 'Ei', 'egg', 'food'), (9, 'Zitrone', 'lemon', 'food'), (10, 'Bär', 'bear', 'animals'); DELETE FROM words WHERE id = 5; {{user}}` },
+      ],
       hints: ['Choose the two columns after SELECT.', "Text values go in single quotes: `WHERE category = 'food'`."],
     },
     {
@@ -217,7 +220,10 @@ FROM words
 GROUP BY category
 ORDER BY category;
 `,
-      tests: [{ name: 'Returns each category with its count', code: '' }],
+      tests: [
+        { name: 'Returns each category with its count', code: '' },
+        { name: 'Still correct with different data', code: `INSERT INTO words (id, term, translation, category) VALUES (8, 'Ei', 'egg', 'food'), (9, 'Blau', 'blue', 'colors'), (10, 'Tisch', 'table', 'home'); DELETE FROM words WHERE id IN (5, 6); {{user}}` },
+      ],
       hints: ['`GROUP BY category` makes one group per category.', '`COUNT(*) AS total` counts the rows in each group and names the column.'],
     },
     {
@@ -236,7 +242,10 @@ JOIN words ON words.id = progress.word_id
 WHERE progress.user_id = 1 AND progress.mastered = 1
 ORDER BY words.term;
 `,
-      tests: [{ name: 'Returns the words Ana has mastered', code: '' }],
+      tests: [
+        { name: 'Returns the words Ana has mastered', code: '' },
+        { name: 'Still correct when Ana’s progress changes', code: `UPDATE progress SET mastered = 0 WHERE user_id = 1 AND word_id = 3; INSERT INTO progress (user_id, word_id, mastered) VALUES (1, 5, 1), (1, 6, 1), (2, 2, 1); {{user}}` },
+      ],
       hints: ['The terms are in `words`; who mastered what is in `progress`. Join them on the word id.', 'Filter by both user_id and mastered.'],
     },
     {
@@ -261,7 +270,10 @@ FROM words
 LEFT JOIN progress ON progress.word_id = words.id AND progress.user_id = 2
 ORDER BY words.id;
 `,
-      tests: [{ name: 'Returns all 7 words with Ben’s status', code: '' }],
+      tests: [
+        { name: 'Returns all 7 words with Ben’s status', code: '' },
+        { name: 'Still correct when Ben’s progress changes', code: `INSERT INTO words (id, term, translation, category) VALUES (8, 'Ei', 'egg', 'food'); INSERT INTO progress (user_id, word_id, mastered) VALUES (2, 7, 1), (2, 8, 1), (1, 5, 1); UPDATE progress SET mastered = 1 WHERE user_id = 2 AND word_id = 4; {{user}}` },
+      ],
       hints: [
         'An inner JOIN drops words Ben has never studied. You need LEFT JOIN.',
         'A condition on the right table in WHERE turns a LEFT JOIN back into an inner join. Put `progress.user_id = 2` in the ON clause.',
@@ -329,7 +341,10 @@ ORDER BY words.id;
       solution: `INSERT INTO progress (user_id, word_id, mastered) VALUES (2, 3, 1);
 UPDATE progress SET mastered = 1 WHERE user_id = 1 AND word_id = 2;
 `,
-      tests: [{ name: 'The progress table ends up correct', code: `SELECT user_id, word_id, mastered FROM progress ORDER BY user_id, word_id;` }],
+      tests: [
+        { name: 'The progress table ends up correct', code: `SELECT user_id, word_id, mastered FROM progress ORDER BY user_id, word_id;` },
+        { name: 'Only touches the two rows it should', code: `INSERT INTO progress (user_id, word_id, mastered) VALUES (2, 5, 0), (1, 6, 0); {{user}}; SELECT user_id, word_id, mastered FROM progress ORDER BY user_id, word_id;` },
+      ],
       hints: ['`INSERT INTO table (columns) VALUES (values);`', 'An UPDATE without WHERE changes every row. Target exactly one row with both user_id and word_id.'],
     },
   ],

@@ -10,6 +10,8 @@ export interface CodeTest {
   /**
    * js / ts / jsx / rn: the body of an async function. It can use the problem's exported names,
    * the `setup` fixtures, `expect`, `assert` and (for jsx/rn) `render`, `h` and the other React helpers.
+   * Against hard-coded answers: `ref` holds the reference solution's exports, `rand` makes inputs
+   * that change on every run, and `await sameAsRef('fn', () => [args])` compares both on many of them.
    * sql: a check query run after the learner's SQL; its result must match the reference solution's.
    * An empty string compares the result of the learner's own last statement.
    */

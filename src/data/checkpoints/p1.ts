@@ -192,6 +192,7 @@ export const p1: Checkpoint = {
         { name: 'Returns an object with all four properties', code: `expect(createWord('Hund', 'dog', 'animals')).toEqual({ term: 'Hund', translation: 'dog', category: 'animals', mastered: false });` },
         { name: 'Works with other values', code: `expect(createWord('Brot', 'bread', 'food')).toEqual({ term: 'Brot', translation: 'bread', category: 'food', mastered: false });` },
         { name: 'Returns a new object on every call', code: `const a = createWord('Hund', 'dog', 'animals'); const b = createWord('Hund', 'dog', 'animals'); expect(a === b).toBe(false);` },
+        { name: 'Works for any word', code: `await sameAsRef('createWord', () => [rand.word(), rand.word(), rand.word()]);` },
       ],
       hints: ['Use `return { ... }` with the property names.', 'Shorthand works: `{ term }` is the same as `{ term: term }`.'],
     },
@@ -223,6 +224,12 @@ export const p1: Checkpoint = {
         { name: 'Returns the food', code: `expect(filterByCategory(words, 'food').map((w) => w.term)).toEqual(['Brot', 'Apfel']);` },
         { name: 'Returns [] when nothing matches', code: `expect(filterByCategory(words, 'colors')).toEqual([]);` },
         { name: 'Does not change the original array', code: `filterByCategory(words, 'food'); expect(JSON.stringify(words)).toBe(snapshot);` },
+        {
+          name: 'Works for any list and category',
+          code: `const categories = rand.distinct(3, () => rand.word(3, 6));
+        const anyWords = () => rand.distinct(rand.int(0, 10), () => rand.word(3, 7)).map((term) => ({ term, translation: rand.word(), category: rand.pick(categories), mastered: rand.bool() }));
+        await sameAsRef('filterByCategory', () => [anyWords(), rand.bool() ? rand.pick(categories) : rand.word(3, 6)], 40);`,
+        },
       ],
       hints: ['Arrays have a method that keeps only the items for which a function returns true.'],
     },
@@ -259,6 +266,15 @@ export const p1: Checkpoint = {
         { name: 'Does not modify the original array or objects', code: `markMastered(words, 'Katze'); expect(JSON.stringify(words)).toBe(snapshot);` },
         { name: 'Returns a new array', code: `expect(markMastered(words, 'Katze') === words).toBe(false);` },
         { name: 'Unknown term: nothing changes', code: `expect(markMastered(words, 'Haus')).toEqual(words);` },
+        {
+          name: 'Works for any list and term',
+          code: `const categories = rand.distinct(3, () => rand.word(3, 6));
+        const anyWords = () => rand.distinct(rand.int(0, 10), () => rand.word(3, 7)).map((term) => ({ term, translation: rand.word(), category: rand.pick(categories), mastered: rand.bool() }));
+        await sameAsRef('markMastered', () => {
+          const list = anyWords();
+          return [list, list.length > 0 && rand.bool() ? rand.pick(list).term : rand.word()];
+        }, 40);`,
+        },
       ],
       hints: [
         'The starter code works, but it changes the original objects. That is the bug to fix.',
@@ -295,6 +311,12 @@ export const p1: Checkpoint = {
         { name: '1 of 3 mastered → 33', code: `expect(masteredPercentage(words.slice(1))).toBe(33);` },
         { name: '2 of 3 mastered → 67', code: `expect(masteredPercentage([words[0], words[1], words[2]])).toBe(67);` },
         { name: 'Empty list → 0', code: `expect(masteredPercentage([])).toBe(0);` },
+        {
+          name: 'Works for any list',
+          code: `const categories = rand.distinct(3, () => rand.word(3, 6));
+        const anyWords = () => rand.distinct(rand.int(0, 10), () => rand.word(3, 7)).map((term) => ({ term, translation: rand.word(), category: rand.pick(categories), mastered: rand.bool() }));
+        await sameAsRef('masteredPercentage', () => [anyWords()], 40);`,
+        },
       ],
       hints: ['What is 0 / 0 in JavaScript? Handle the empty list first.', '`Math.round` rounds to the nearest whole number.'],
     },
@@ -337,6 +359,12 @@ export const p1: Checkpoint = {
         { name: 'Summarizes the 4 words', code: `expect(summarize(words)).toEqual({ total: 4, mastered: 2, byCategory: { animals: 2, food: 2 } });` },
         { name: 'Counts an uneven list', code: `expect(summarize(words.slice(0, 3))).toEqual({ total: 3, mastered: 2, byCategory: { animals: 2, food: 1 } });` },
         { name: 'Empty list', code: `expect(summarize([])).toEqual({ total: 0, mastered: 0, byCategory: {} });` },
+        {
+          name: 'Works for any list',
+          code: `const categories = rand.distinct(3, () => rand.word(3, 6));
+        const anyWords = () => rand.distinct(rand.int(0, 10), () => rand.word(3, 7)).map((term) => ({ term, translation: rand.word(), category: rand.pick(categories), mastered: rand.bool() }));
+        await sameAsRef('summarize', () => [anyWords()], 40);`,
+        },
       ],
       hints: [
         'A `for...of` loop visits each word.',

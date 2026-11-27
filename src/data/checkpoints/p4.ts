@@ -213,6 +213,20 @@ export const p4: Checkpoint = {
         { name: 'Clicking shows the translation', code: `const r = render(h(VocabCard, { word })); r.click(r.byText('Show translation', 'button')); expect(r.text()).toContain('dog'); expect(r.findAll('p').length).toBe(1);` },
         { name: 'The button then says Hide translation', code: `const r = render(h(VocabCard, { word })); r.click(r.byText('Show translation', 'button')); expect(r.queryByText('Hide translation', 'button')).toBeTruthy();` },
         { name: 'Clicking again hides it', code: `const r = render(h(VocabCard, { word })); r.click(r.byText('Show translation', 'button')); r.click(r.byText('Hide translation', 'button')); expect(r.text()).not.toContain('dog'); expect(r.queryByText('Show translation', 'button')).toBeTruthy();` },
+        {
+          name: 'Works for any word',
+          code: `const cap = (w) => w[0].toUpperCase() + w.slice(1);
+        const anyWords = (min, max) => rand.distinct(rand.int(min, max), () => cap(rand.word(4, 7))).map((term, i) => ({ id: 'id' + rand.int(100, 999) + i, term, translation: rand.word(4, 7), mastered: rand.bool() }));
+        for (const w of anyWords(5, 5)) {
+          const r = render(h(VocabCard, { word: w }));
+          expect(r.textOf(r.findAll('h3')[0] ?? '')).toBe(w.term);
+          expect(r.text()).not.toContain(w.translation);
+          r.click(r.byText('Show translation', 'button'));
+          expect(r.textOf(r.findAll('p')[0] ?? '')).toBe(w.translation);
+          r.click(r.byText('Hide translation', 'button'));
+          expect(r.text()).not.toContain(w.translation);
+        }`,
+        },
       ],
       hints: ['You need one piece of state: whether the translation is revealed (true or false).', 'Use `{revealed && <p>…</p>}` to render the paragraph only when revealed.'],
     },
@@ -259,6 +273,22 @@ export const p4: Checkpoint = {
         { name: 'Each item shows the term and translation', code: `const r = render(h(WordList, { words })); const first = r.textOf(r.findAll('li')[0]); expect(first).toContain('Hund'); expect(first).toContain('dog');` },
         { name: 'Every list item has a key', code: `expect(keylessListItems(WordList({ words }))).toBe(0);` },
         { name: 'Empty list shows "No words yet"', code: `const r = render(h(WordList, { words: [] })); expect(r.text()).toContain('No words yet'); expect(r.findAll('li')).toHaveLength(0);` },
+        {
+          name: 'Works for any list',
+          code: `const cap = (w) => w[0].toUpperCase() + w.slice(1);
+        const anyWords = (min, max) => rand.distinct(rand.int(min, max), () => cap(rand.word(4, 7))).map((term, i) => ({ id: 'id' + rand.int(100, 999) + i, term, translation: rand.word(4, 7), mastered: rand.bool() }));
+        for (let round = 0; round < 5; round++) {
+          const list = anyWords(1, 7);
+          const r = render(h(WordList, { words: list }));
+          const items = r.findAll('li');
+          expect(items).toHaveLength(list.length);
+          list.forEach((w, i) => {
+            expect(r.textOf(items[i])).toContain(w.term);
+            expect(r.textOf(items[i])).toContain(w.translation);
+          });
+          expect(keylessListItems(WordList({ words: list }))).toBe(0);
+        }`,
+        },
       ],
       hints: ['Add `key={word.id}` to the element returned inside `map`.', 'You can `return` early from a component: `if (words.length === 0) return …;`.'],
     },
@@ -325,6 +355,27 @@ export const p4: Checkpoint = {
         { name: 'Marked words show a disabled "Mastered" button', code: `const r = render(h(MasteryTracker, { words })); const count = () => r.findAll('button').filter((b) => r.textOf(b) === 'Mark mastered').length; expect(count()).toBe(2); r.click(r.byText('Mark mastered', 'button')); expect(count()).toBe(1); const done = r.findAll('button').filter((b) => r.textOf(b) === 'Mastered'); expect(done.length).toBe(2); expect(done.every((b) => b.props.disabled === true)).toBe(true);` },
         { name: 'All mastered → 100%', code: `const r = render(h(MasteryTracker, { words })); r.click(r.byText('Mark mastered', 'button')); r.click(r.byText('Mark mastered', 'button')); expect(r.text()).toContain('Mastered: 3 of 3 (100%)');` },
         { name: 'The words prop is not modified', code: `const r = render(h(MasteryTracker, { words })); r.click(r.byText('Mark mastered', 'button')); expect(JSON.stringify(words)).toBe(snapshot);` },
+        {
+          name: 'Works for any list and any clicks',
+          code: `const cap = (w) => w[0].toUpperCase() + w.slice(1);
+        const anyWords = (min, max) => rand.distinct(rand.int(min, max), () => cap(rand.word(4, 7))).map((term, i) => ({ id: 'id' + rand.int(100, 999) + i, term, translation: rand.word(4, 7), mastered: rand.bool() }));
+        for (let round = 0; round < 5; round++) {
+          const list = anyWords(1, 6);
+          const before = JSON.stringify(list);
+          const r = render(h(MasteryTracker, { words: list }));
+          let mastered = list.filter((w) => w.mastered).length;
+          const stats = () => 'Mastered: ' + mastered + ' of ' + list.length + ' (' + Math.round((mastered / list.length) * 100) + '%)';
+          expect(r.text()).toContain(stats());
+          for (let click = rand.int(0, list.length - mastered); click > 0; click--) {
+            const open = r.findAll('button').filter((b) => r.textOf(b) === 'Mark mastered');
+            r.click(rand.pick(open));
+            mastered++;
+            expect(r.text()).toContain(stats());
+          }
+          expect(r.findAll('button').filter((b) => r.textOf(b) === 'Mastered' && b.props.disabled === true)).toHaveLength(mastered);
+          expect(JSON.stringify(list)).toBe(before);
+        }`,
+        },
       ],
       hints: [
         'Store the ids of mastered words in state, initialised from the prop: `useState(() => words.filter(…).map(…))`.',

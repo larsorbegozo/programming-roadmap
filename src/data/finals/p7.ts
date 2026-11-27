@@ -119,6 +119,19 @@ function checker(firstBad) {
         { name: 'Only the last commit is bad', hidden: true, code: `expect(findFirstBadCommit(commits, checker(99).isBad)).toBe('c99');` },
         { name: 'Uses at most 8 checks for 100 commits', hidden: true, code: `for (const bad of [1, 50, 73, 98]) { const c = checker(bad); expect(findFirstBadCommit(commits, c.isBad)).toBe('c' + bad); expect(c.calls <= 8).toBe(true); }` },
         { name: 'Works with a single commit', hidden: true, code: `expect(findFirstBadCommit(['only'], () => true)).toBe('only');` },
+        {
+          name: 'Any history, with a logarithmic number of checks',
+          hidden: true,
+          code: `for (let round = 0; round < 30; round++) {
+          const n = rand.int(1, 300);
+          const history = Array.from({ length: n }, (_, i) => 'c' + i);
+          const bad = rand.int(0, n - 1);
+          const c = checker(bad);
+          expect(findFirstBadCommit(history, c.isBad)).toBe('c' + bad);
+          const allowed = Math.ceil(Math.log2(n)) + 1;
+          assert(c.calls <= allowed, n + ' commits, first bad c' + bad + ': ' + c.calls + ' checks, at most ' + allowed + ' allowed');
+        }`,
+        },
       ],
     },
   ],

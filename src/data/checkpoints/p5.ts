@@ -193,6 +193,19 @@ const styles = StyleSheet.create({
         { name: '-1 decreases the count', code: `const r = render(h(Counter)); r.press(r.byText('+1')); r.press(r.byText('+1')); r.press(r.byText('-1')); expect(r.textOf(r.byTestId('count'))).toBe('1');` },
         { name: 'The count never goes below 0', code: `const r = render(h(Counter)); r.press(r.byText('-1')); expect(r.textOf(r.byTestId('count'))).toBe('0');` },
         { name: 'Reset goes back to 0', code: `const r = render(h(Counter)); r.press(r.byText('+1')); r.press(r.byText('+1')); r.press(r.byText('Reset')); expect(r.textOf(r.byTestId('count'))).toBe('0');` },
+        {
+          name: 'Any sequence of presses',
+          code: `for (let round = 0; round < 5; round++) {
+          const r = render(h(Counter));
+          let expected = 0;
+          for (let i = rand.int(5, 25); i > 0; i--) {
+            const button = rand.pick(['+1', '+1', '-1', 'Reset']);
+            r.press(r.byText(button));
+            expected = button === '+1' ? expected + 1 : button === '-1' ? Math.max(0, expected - 1) : 0;
+            expect(r.textOf(r.byTestId('count'))).toBe(String(expected));
+          }
+        }`,
+        },
       ],
       hints: ['A plain variable resets on every render. Use `useState`.', '`Math.max(0, n)` returns n, but never less than 0.'],
     },
@@ -258,6 +271,29 @@ const styles = StyleSheet.create({
         { name: 'Next moves to the next card and hides the translation', code: `const r = render(h(Flashcards, { words })); r.press(r.byTestId('flip')); r.press(r.byTestId('next')); expect(r.textOf(r.byTestId('term'))).toBe('Katze'); expect(r.textOf(r.byTestId('progress'))).toBe('2 / 3'); expect(r.queryByTestId('translation')).toBeNull();` },
         { name: 'After the last card it wraps to the first', code: `const r = render(h(Flashcards, { words })); r.press(r.byTestId('next')); r.press(r.byTestId('next')); r.press(r.byTestId('next')); expect(r.textOf(r.byTestId('term'))).toBe('Hund');` },
         { name: 'Empty deck shows "No cards"', code: `const r = render(h(Flashcards, { words: [] })); expect(r.text()).toBe('No cards');` },
+        {
+          name: 'Any deck and any presses',
+          code: `const cap = (w) => w[0].toUpperCase() + w.slice(1);
+        for (let round = 0; round < 5; round++) {
+          const deck = rand.distinct(rand.int(1, 6), () => cap(rand.word(4, 7))).map((term, i) => ({ id: 'w' + i, term, translation: rand.word(4, 7) }));
+          const r = render(h(Flashcards, { words: deck }));
+          let index = 0;
+          let flipped = false;
+          for (let i = rand.int(5, 20); i > 0; i--) {
+            const button = rand.pick(['flip', 'next']);
+            r.press(r.byTestId(button));
+            if (button === 'flip') flipped = !flipped;
+            else {
+              index = (index + 1) % deck.length;
+              flipped = false;
+            }
+            expect(r.textOf(r.byTestId('term'))).toBe(deck[index].term);
+            expect(r.textOf(r.byTestId('progress'))).toBe(index + 1 + ' / ' + deck.length);
+            if (flipped) expect(r.textOf(r.byTestId('translation'))).toBe(deck[index].translation);
+            else expect(r.queryByTestId('translation')).toBeNull();
+          }
+        }`,
+        },
       ],
       hints: [
         'You need two pieces of state: the current index and whether the card is flipped.',
@@ -322,6 +358,20 @@ const styles = StyleSheet.create({
         { name: 'The right option shows "Correct!"', code: `const r = render(h(Quiz, { question })); r.press(r.byTestId('option-1')); expect(r.textOf(r.byTestId('feedback'))).toBe('Correct!');` },
         { name: 'A wrong option shows the right answer', code: `const r = render(h(Quiz, { question })); r.press(r.byTestId('option-0')); expect(r.textOf(r.byTestId('feedback'))).toBe('Wrong — the answer is dog');` },
         { name: 'Only the first answer counts', code: `const r = render(h(Quiz, { question })); r.press(r.byTestId('option-0')); r.press(r.byTestId('option-1')); expect(r.textOf(r.byTestId('feedback'))).toBe('Wrong — the answer is dog');` },
+        {
+          name: 'Any question and any answers',
+          code: `for (let round = 0; round < 8; round++) {
+          const options = rand.distinct(rand.int(2, 5), () => rand.word(3, 7));
+          const q = { prompt: rand.word(4, 8), options, answerIndex: rand.int(0, options.length - 1) };
+          const r = render(h(Quiz, { question: q }));
+          expect(r.textOf(r.byTestId('prompt'))).toBe(q.prompt);
+          options.forEach((option, i) => expect(r.textOf(r.byTestId('option-' + i))).toBe(option));
+          const first = rand.int(0, options.length - 1);
+          r.press(r.byTestId('option-' + first));
+          r.press(r.byTestId('option-' + rand.int(0, options.length - 1)));
+          expect(r.textOf(r.byTestId('feedback'))).toBe(first === q.answerIndex ? 'Correct!' : 'Wrong — the answer is ' + options[q.answerIndex]);
+        }`,
+        },
       ],
       hints: ['Store the selected option index in state, starting as `null`.', 'In `onPress`, only update the state if nothing has been selected yet.'],
     },

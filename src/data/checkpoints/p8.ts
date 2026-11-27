@@ -209,6 +209,23 @@ function buildQuestion(target: VocabularyWord, pool: VocabularyWord[], optionCou
         { name: 'Options are never repeated', code: `for (let s = 1; s <= 30; s++) { const q = buildQuestion(target, words, 5, seeded(s)); expect(new Set(q.options).size).toBe(q.options.length); }` },
         { name: 'Small pool: returns fewer options', code: `const q = buildQuestion(target, words.slice(0, 3), 4, seeded(4)); expect([...q.options].sort()).toEqual(['cat', 'dog']);` },
         { name: 'The right answer is shuffled', code: `const positions = new Set(); for (let s = 1; s <= 30; s++) positions.add(buildQuestion(target, words, 4, seeded(s)).answerIndex); expect(positions.size).toBeGreaterThan(2);` },
+        {
+          name: 'Works for any pool and option count',
+          code: `for (let round = 0; round < 25; round++) {
+          const translations = rand.distinct(rand.int(1, 8), () => rand.word(3, 6));
+          const pool = rand.list(rand.int(1, 10), (i) => ({ id: 'x' + i, term: rand.word(4, 7), translation: rand.pick(translations) }));
+          const t = rand.pick(pool);
+          const count = rand.int(2, 6);
+          const q = buildQuestion(t, pool, count, seeded(rand.int(1, 100000)));
+          const distinct = new Set(pool.map((w) => w.translation));
+          expect(q.prompt).toBe(t.term);
+          expect(q.wordId).toBe(t.id);
+          expect(q.options).toHaveLength(Math.min(count, distinct.size));
+          expect(new Set(q.options).size).toBe(q.options.length);
+          expect(q.options[q.answerIndex]).toBe(t.translation);
+          for (const option of q.options) expect([...distinct]).toContain(option);
+        }`,
+        },
       ],
       typeTests: [
         { name: 'Returns a QuizQuestion', code: `const w: VocabularyWord = { id: 'a', term: 'b', translation: 'c' };\nconst q: QuizQuestion = buildQuestion(w, [w], 4, Math.random);` },
@@ -286,6 +303,10 @@ function summarizeSession(answers: Answer[]): SessionSummary {
         { name: 'Words to review: unique, in order', code: `expect(summarizeSession(answers).toReview).toEqual(['w2', 'w4']);` },
         { name: 'All correct → nothing to review, 100%', code: `const s = summarizeSession(answers.filter((a) => a.correct)); expect(s.toReview).toEqual([]); expect(s.accuracy).toBe(100);` },
         { name: 'No answers → all zeros', code: `expect(summarizeSession([])).toEqual({ total: 0, correct: 0, accuracy: 0, averageMs: 0, toReview: [] });` },
+        {
+          name: 'Works for any session',
+          code: `await sameAsRef('summarizeSession', () => [rand.list(rand.int(0, 12), () => ({ wordId: 'w' + rand.int(1, 5), correct: rand.bool(), ms: rand.int(1, 6000) }))], 40);`,
+        },
       ],
       typeTests: [{ name: 'Returns a SessionSummary', code: `const s: SessionSummary = summarizeSession([]);` }],
       hints: ['Handle the empty list first to avoid dividing by zero.', 'For `toReview`, loop through the answers and push an id only if it is wrong and not already in the list.'],

@@ -144,6 +144,26 @@ function applyAnswer(progress: WordProgress[], answer: Answer): WordProgress[] {
         { name: 'New words get an entry', hidden: true, code: `const r = applyAnswer(progress, { wordId: 'w9', correct: true }); expect(r).toHaveLength(3); expect(r[2]).toEqual({ wordId: 'w9', streak: 1, mastered: false });` },
         { name: 'Below 3 is not mastered', hidden: true, code: `const r = applyAnswer([], { wordId: 'a', correct: true }); expect(applyAnswer(r, { wordId: 'a', correct: true })[0]).toEqual({ wordId: 'a', streak: 2, mastered: false });` },
         { name: 'Does not modify the input', hidden: true, code: `applyAnswer(progress, { wordId: 'w1', correct: true }); applyAnswer(progress, { wordId: 'w2', correct: false }); expect(JSON.stringify(progress)).toBe(snapshot);` },
+        {
+          name: 'Works for any progress and answer',
+          hidden: true,
+          code: `await sameAsRef('applyAnswer', () => {
+          const ids = rand.distinct(rand.int(0, 5), () => 'w' + rand.int(1, 9));
+          const list = ids.map((wordId) => {
+            const streak = rand.int(0, 6);
+            return { wordId, streak, mastered: streak >= 3 && rand.bool() };
+          });
+          return [list, { wordId: 'w' + rand.int(1, 9), correct: rand.bool() }];
+        }, 40);
+        let state = [];
+        let theirs = [];
+        for (let i = 0; i < 30; i++) {
+          const answer = { wordId: 'w' + rand.int(1, 3), correct: rand.next() < 0.7 };
+          state = applyAnswer(state, answer);
+          theirs = ref.applyAnswer(theirs, answer);
+          expect(state).toEqual(theirs);
+        }`,
+        },
       ],
       typeTests: [
         { name: 'Returns WordProgress[]', code: `const r: WordProgress[] = applyAnswer([], { wordId: 'a', correct: true });` },

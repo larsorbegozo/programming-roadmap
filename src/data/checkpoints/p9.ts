@@ -213,6 +213,10 @@ function ratingFor(result: GameResult): Rating {
         { name: 'Unaided recall from audio → Easy', code: `expect(ratingFor(r(true, 0, 'typing-from-audio'))).toBe('Easy');` },
         { name: 'Recognition is capped at Good', code: `expect(ratingFor(r(true, 0, 'matching'))).toBe('Good'); expect(ratingFor(r(true, 0, 'multiple-choice'))).toBe('Good');` },
         { name: 'Typing without audio → Good', code: `expect(ratingFor(r(true, 0, 'typing'))).toBe('Good');` },
+        {
+          name: 'Works for any result',
+          code: `await sameAsRef('ratingFor', () => [{ correct: rand.bool(), hintsUsed: rand.pick([0, 0, rand.int(1, 4)]), exerciseType: rand.pick(['typing', 'typing-from-audio', 'matching', 'multiple-choice']), responseMs: rand.int(200, 9000) }], 40);`,
+        },
       ],
       typeTests: [
         { name: 'Returns a Rating', code: `const g: GameResult = { correct: true, hintsUsed: 0, exerciseType: 'typing', responseMs: 900 };\nconst rating: Rating = ratingFor(g);` },
@@ -261,6 +265,18 @@ function mergeEvents(existing: ReviewEvent[], incoming: ReviewEvent[]): ReviewEv
         { name: 'Merging twice equals merging once', code: `const once = mergeEvents(phone, tablet); expect(mergeEvents(once, tablet)).toEqual(once);` },
         { name: 'Same timestamp: sorted by id', code: `const x = [e('z9', 'w1', 'Good', '2026-11-20T10:00:00Z')]; expect(mergeEvents(x, [e('m5', 'w2', 'Good', '2026-11-20T10:00:00Z')]).map((v) => v.id)).toEqual(['m5', 'z9']);` },
         { name: 'Does not modify the inputs', code: `const a = JSON.stringify(phone); const b = JSON.stringify(tablet); mergeEvents(tablet, phone); expect(JSON.stringify(phone)).toBe(a); expect(JSON.stringify(tablet)).toBe(b);` },
+        {
+          name: 'Works for any two devices',
+          code: `const time = () => '2026-11-' + (10 + rand.int(0, 9)) + 'T' + String(rand.int(0, 23)).padStart(2, '0') + ':00:00Z';
+        const randomEvent = (id) => e(id, 'w' + rand.int(1, 4), rand.pick(['Again', 'Hard', 'Good', 'Easy']), time());
+        await sameAsRef('mergeEvents', () => {
+          const ids = rand.distinct(rand.int(1, 10), () => rand.word(2, 3));
+          const pool = ids.map(randomEvent);
+          const existing = pool.filter(() => rand.bool());
+          const incoming = pool.filter(() => rand.bool()).map((x) => (rand.bool() ? { ...x, rating: 'Easy', deviceId: 'tablet' } : x));
+          return [existing, incoming];
+        }, 40);`,
+        },
       ],
       hints: ['A `Map` keyed by id makes duplicate detection easy.', 'ISO timestamps sort correctly as strings, so `a.at.localeCompare(b.at)` works.', '`.sort()` modifies the array it is called on, so sort a new array.'],
     },
@@ -343,6 +359,12 @@ function replay(events: ReviewEvent[]): Record<string, CardState> {
         { name: 'Arrival order does not matter', code: `const a = replay([...phone, ...tablet]); const b = replay([...tablet].reverse().concat([...phone].reverse())); expect(b).toEqual(a);` },
         { name: 'Does not modify the input', code: `const input = [...tablet, ...phone]; const before = JSON.stringify(input); replay(input); expect(JSON.stringify(input)).toBe(before);` },
         { name: 'No events → empty object', code: `expect(replay([])).toEqual({});` },
+        {
+          name: 'Works for any history',
+          code: `const time = () => '2026-11-' + (10 + rand.int(0, 9)) + 'T' + String(rand.int(0, 23)).padStart(2, '0') + ':00:00Z';
+        const randomEvent = (id) => e(id, 'w' + rand.int(1, 4), rand.pick(['Again', 'Hard', 'Good', 'Easy']), time());
+        await sameAsRef('replay', () => [rand.distinct(rand.int(0, 12), () => rand.word(2, 3)).map(randomEvent)], 40);`,
+        },
       ],
       typeTests: [{ name: 'Returns a record of card states', code: `const s: Record<string, CardState> = replay([]);` }],
       hints: ['Sort a copy of the events before processing them.', 'On `Again`, increase `lapses` and set `streak` to 0; otherwise add 1 to `streak`.'],

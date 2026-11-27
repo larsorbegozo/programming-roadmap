@@ -173,6 +173,18 @@ const before = JSON.stringify(defaults);`,
         { name: 'Notifications are merged one level deep', hidden: true, code: `expect(mergeSettings(defaults, { notifications: { hour: 8 } }).notifications).toEqual({ reminders: true, hour: 8 });` },
         { name: 'Works without saved.notifications', hidden: true, code: `expect(mergeSettings(defaults, { dailyGoal: 20 })).toEqual({ dailyGoal: 20, theme: 'dark', notifications: { reminders: true, hour: 19 } });` },
         { name: 'Never modifies the inputs', hidden: true, code: `const saved = { notifications: { reminders: false } }; const s = JSON.stringify(saved); const r = mergeSettings(defaults, saved); r.notifications.hour = 1; expect(JSON.stringify(defaults)).toBe(before); expect(JSON.stringify(saved)).toBe(s);` },
+        {
+          name: 'Works for any settings',
+          hidden: true,
+          code: `await sameAsRef('mergeSettings', () => {
+          const d = { dailyGoal: rand.int(1, 50), theme: rand.pick(['dark', 'light']), notifications: { reminders: rand.bool(), hour: rand.int(0, 23) } };
+          const saved = {};
+          if (rand.bool()) saved.dailyGoal = rand.int(1, 50);
+          if (rand.bool()) saved.theme = rand.pick(['dark', 'light', 'system']);
+          if (rand.bool()) saved.notifications = rand.pick([{}, { hour: rand.int(0, 23) }, { reminders: rand.bool() }, { reminders: rand.bool(), hour: rand.int(0, 23) }]);
+          return [d, saved];
+        }, 40);`,
+        },
       ],
     },
     {
@@ -221,6 +233,23 @@ function fakeFetch(results) {
         { name: 'A non-OK status counts as a failure', hidden: true, code: `fakeFetch([500, 503, 'ok']); expect(await fetchWithRetry('/w', 2)).toEqual({ url: '/w' }); expect(calls).toBe(3);` },
         { name: 'Throws "Failed after 3 attempts"', hidden: true, code: `fakeFetch(['network']); await expect(() => fetchWithRetry('/w', 2)).toReject('Failed after 3 attempts'); expect(calls).toBe(3);` },
         { name: 'retries = 0 means one attempt', hidden: true, code: `fakeFetch([404]); await expect(() => fetchWithRetry('/w', 0)).toReject('Failed after 1 attempts'); expect(calls).toBe(1);` },
+        {
+          name: 'Works for any sequence of failures',
+          hidden: true,
+          code: `const attempt = async (fn, results, retries) => {
+          calls = 0;
+          fakeFetch(results);
+          const outcome = await fn('/w' + retries, retries).then((value) => ({ value }), (e) => ({ error: e.message }));
+          return { ...outcome, calls };
+        };
+        for (let i = 0; i < 20; i++) {
+          const results = rand.list(rand.int(1, 6), () => rand.pick(['network', 500, 503, 404, 'ok']));
+          const retries = rand.int(0, 4);
+          const expected = await attempt(ref.fetchWithRetry, results, retries);
+          const actual = await attempt(fetchWithRetry, results, retries);
+          assert(JSON.stringify(actual) === JSON.stringify(expected), 'With responses ' + JSON.stringify(results) + ' and retries = ' + retries + ': expected ' + JSON.stringify(expected) + ', received ' + JSON.stringify(actual));
+        }`,
+        },
       ],
     },
   ],

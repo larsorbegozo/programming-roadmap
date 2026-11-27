@@ -219,6 +219,7 @@ export const p7: Checkpoint = {
         { name: '0 of 1 → 0', code: `expect(masteredPercentage([{ term: 'X', mastered: false }])).toBe(0);` },
         { name: 'Empty list → 0', code: `expect(masteredPercentage([])).toBe(0);` },
         { name: 'Does not change the words', code: `const copy = JSON.stringify(words); masteredPercentage(words); expect(JSON.stringify(words)).toBe(copy);` },
+        { name: 'Works for any list', code: `await sameAsRef('masteredPercentage', () => [rand.list(rand.int(0, 12), () => ({ term: rand.word(), mastered: rand.bool() }))], 40);` },
       ],
       hints: [
         'Look at the loop condition: which index is the last valid one?',
@@ -270,6 +271,18 @@ const broken = () => '';`,
         { name: 'Catches a version that does not lowercase', code: `expect(testNormalize(noLower)).toBe(false);` },
         { name: 'Catches a version that does not collapse spaces', code: `expect(testNormalize(noCollapse)).toBe(false);` },
         { name: 'Catches a version that always returns ""', code: `expect(testNormalize(broken)).toBe(false);` },
+        {
+          name: 'Judges implementations by what they do, not how they are written',
+          code: `// Correct, but written differently from the reference implementation.
+        const rewritten = (s) => s.split(/\\s+/).filter((part) => part !== '').join(' ').toLowerCase();
+        // Subtly wrong versions.
+        const onlyStart = (s) => s.trimStart().toLowerCase().replace(/\\s+/g, ' ');
+        const onlyDoubles = (s) => s.trim().toLowerCase().replace(/  /g, ' ');
+        const noSpaces = (s) => s.toLowerCase().replace(/\\s+/g, '');
+        const firstLetterOnly = (s) => { const t = s.trim().replace(/\\s+/g, ' '); return t.charAt(0).toLowerCase() + t.slice(1); };
+        expect(testNormalize(rewritten)).toBe(true);
+        for (const bad of [onlyStart, onlyDoubles, noSpaces, firstLetterOnly]) expect(testNormalize(bad)).toBe(false);`,
+        },
       ],
       hints: ['Write one test case for each rule: an input that only that rule changes, and the expected output.', 'Store cases as `[input, expected]` pairs and check them all with `every`.'],
     },

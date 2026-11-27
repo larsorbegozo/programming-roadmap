@@ -75,8 +75,19 @@ export interface ExerciseFileInfo {
   heading: string;
 }
 
+/**
+ * Randomised checks compare against the reference solution (`ref`, `sameAsRef`) or use the
+ * app's seeded `rand`. Shipping them would put the solution in the file, so they only run in
+ * the app, which is where an exercise is actually graded.
+ */
+export function runsOnlyInApp(code: string): boolean {
+  return /\b(?:ref\.|rand\.|sameAsRef\()/.test(code);
+}
+
 export function buildExerciseFile(problem: CodeProblem, code: string, info: ExerciseFileInfo): string {
-  const tests = problem.tests
+  const local = problem.tests.filter((t) => !runsOnlyInApp(t.code));
+  const appOnly = problem.tests.length - local.length;
+  const tests = local
     .map((t) => `    { name: ${JSON.stringify(t.name)}, run: async () => {\n${indent(problem.setup ?? '', 6)}\n${indent(t.code, 6)}\n    } },`)
     .join('\n');
   return `/*
@@ -88,7 +99,9 @@ ${comment(problem.prompt)}
  * How to use this file:
  *   1. Write your solution below.
  *   2. In the VS Code terminal, run:  node ${fileNameFor(problem)}
- *   3. When every check passes, copy everything ABOVE the "CHECKS" line into the app and press Run tests.
+ *   3. When every check passes, copy everything ABOVE the "CHECKS" line into the app and press Run tests.${
+    appOnly > 0 ? `\n *      The app also runs ${appOnly} more check${appOnly === 1 ? '' : 's'} with random inputs, so make your code work for any input.` : ''
+  }
  */
 
 ${stripChecks(code).trimEnd()}

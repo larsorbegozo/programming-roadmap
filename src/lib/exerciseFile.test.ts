@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { lessonExercises } from '../data/exercises';
-import { buildExerciseFile, fileNameFor, stripChecks } from './exerciseFile';
+import { buildExerciseFile, fileNameFor, runsOnlyInApp, stripChecks } from './exerciseFile';
 
 const dir = mkdtempSync(join(tmpdir(), 'lyra-exercise-'));
 
@@ -25,7 +25,8 @@ describe('downloadable VS Code exercise files', () => {
     it(`${exercise.id}: the solution passes every check with node`, () => {
       const file = buildExerciseFile(exercise, exercise.solution, { heading: 'test' });
       const result = runWithNode(file, fileNameFor(exercise));
-      expect(result.output).toContain(`${exercise.tests.length} of ${exercise.tests.length} checks passed`);
+      const local = exercise.tests.filter((t) => !runsOnlyInApp(t.code)).length;
+      expect(result.output).toContain(`${local} of ${local} checks passed`);
       expect(result.code).toBe(0);
     });
 
@@ -34,6 +35,14 @@ describe('downloadable VS Code exercise files', () => {
       expect(runWithNode(file, `starter-${fileNameFor(exercise)}`).code).not.toBe(0);
     });
   }
+
+  it('leaves out the randomised checks, so the file never contains the reference solution', () => {
+    for (const exercise of lessonExercises.filter((e) => e.language === 'js')) {
+      const file = buildExerciseFile(exercise, exercise.starter, { heading: 'test' });
+      expect(file).not.toContain('sameAsRef(');
+      expect(file).not.toMatch(/\bref\./);
+    }
+  });
 
   it('pasting the whole file back keeps only the learner code', () => {
     const exercise = lessonExercises[0]!;

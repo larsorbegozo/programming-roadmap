@@ -212,6 +212,16 @@ function computeXp(events: ReviewEvent[], userId: string): number {
         { name: 'Counts duplicated events once', code: `expect(computeXp([...events, ...events], 'ana')).toBe(30);` },
         { name: 'Caps XP at 300 per day', code: `const farm = Array.from({ length: 40 }, (_, i) => e('f' + i, 'ana', 'Easy', '2026-11-21T10:00:00Z')); expect(computeXp(farm, 'ana')).toBe(300);` },
         { name: 'The cap applies per day', code: `const day1 = Array.from({ length: 40 }, (_, i) => e('x' + i, 'ana', 'Easy', '2026-11-21T10:00:00Z')); const day2 = Array.from({ length: 2 }, (_, i) => e('y' + i, 'ana', 'Good', '2026-11-22T10:00:00Z')); expect(computeXp([...day1, ...day2], 'ana')).toBe(320);` },
+        {
+          name: 'Works for any events',
+          code: `await sameAsRef('computeXp', () => {
+          const list = rand.list(rand.int(0, 60), (i) => e(String(rand.int(1, 45)), rand.pick(['ana', 'ben']), rand.pick(['Again', 'Hard', 'Good', 'Easy', 'Easy']), '2026-11-2' + rand.int(0, 2) + 'T' + String(rand.int(0, 23)).padStart(2, '0') + ':00:00Z'));
+          return [list, rand.pick(['ana', 'ben', 'cleo'])];
+        }, 40);
+        const farm = Array.from({ length: rand.int(25, 60) }, (_, i) => e('f' + i, 'ana', 'Easy', '2026-11-21T10:00:00Z'));
+        const extra = Array.from({ length: rand.int(1, 5) }, (_, i) => e('g' + i, 'ana', 'Good', '2026-11-22T10:00:00Z'));
+        expect(computeXp([...farm, ...extra], 'ana')).toBe(ref.computeXp([...farm, ...extra], 'ana'));`,
+        },
       ],
       typeTests: [{ name: 'Returns a number', code: `const xp: number = computeXp([], 'ana');` }],
       hints: ['Use a `Set` of ids you have already counted.', 'Sum XP per day in a `Map` keyed by `at.slice(0, 10)`, then add `Math.min(dayTotal, 300)` for each day.'],
@@ -248,6 +258,19 @@ function findLeakedSecrets(env: Record<string, string>): string[] {
         { name: 'Finds a public service_role key', code: `expect(findLeakedSecrets({ EXPO_PUBLIC_SUPABASE_URL: 'u', EXPO_PUBLIC_SERVICE_ROLE_KEY: 'srv' })).toEqual(['EXPO_PUBLIC_SERVICE_ROLE_KEY']);` },
         { name: 'Server-only secrets are fine', code: `expect(findLeakedSecrets({ STRIPE_SECRET_KEY: 's', DB_PASSWORD: 'p' })).toEqual([]);` },
         { name: 'Checks every sensitive word, in any case', code: `expect(findLeakedSecrets({ EXPO_PUBLIC_db_password: 'p', EXPO_PUBLIC_PRIVATE_TOKEN: 't', EXPO_PUBLIC_API_SECRET: 's' })).toEqual(['EXPO_PUBLIC_API_SECRET', 'EXPO_PUBLIC_PRIVATE_TOKEN', 'EXPO_PUBLIC_db_password']);` },
+        {
+          name: 'Works for any configuration',
+          code: `await sameAsRef('findLeakedSecrets', () => {
+          const env = {};
+          for (let i = rand.int(0, 8); i > 0; i--) {
+            const prefix = rand.pick(['EXPO_PUBLIC_', 'EXPO_PUBLIC_', '', 'PUBLIC_', 'NEXT_PUBLIC_']);
+            const word = rand.pick(['SERVICE_ROLE', 'SECRET', 'PASSWORD', 'PRIVATE', 'URL', 'ANON', 'KEY', 'TOKEN']);
+            const name = prefix + rand.word(2, 5).toUpperCase() + '_' + (rand.bool() ? word : word.toLowerCase()) + '_' + rand.word(2, 4).toUpperCase();
+            env[name] = rand.word();
+          }
+          return [env];
+        }, 40);`,
+        },
       ],
       hints: ['Filter twice: first by the `EXPO_PUBLIC_` prefix, then by the sensitive words.', 'Compare in one case: `name.toUpperCase().includes(word)`.'],
     },

@@ -124,6 +124,22 @@ ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
         { name: 'Several missing tables, sorted', hidden: true, code: `expect(tablesWithoutRls('CREATE TABLE zeta (x int); create table alpha (x int); create table mid (x int); alter table mid enable row level security;')).toEqual(['alpha', 'zeta']);` },
         { name: 'Handles extra whitespace and newlines', hidden: true, code: `expect(tablesWithoutRls('create   table\\n  public.notes (id int);\\nalter table\\n  notes\\n  enable row level security;\\ncreate\\ttable tags (id int);')).toEqual(['tags']);` },
         { name: 'Tables are reported once', hidden: true, code: `expect(tablesWithoutRls('create table if not exists x (id int); create table if not exists x (id int);')).toEqual(['x']);` },
+        {
+          name: 'Works for any migration',
+          hidden: true,
+          code: `const space = () => rand.pick([' ', '  ', '\\n', '\\n  ', '\\t']);
+        const kw = (text) => text.split(' ').map((w) => (rand.bool() ? w.toUpperCase() : w)).join(space());
+        await sameAsRef('tablesWithoutRls', () => {
+          const tables = rand.distinct(rand.int(0, 6), () => rand.word(3, 8) + (rand.bool() ? '_' + rand.word(2, 4) : ''));
+          const lines = [];
+          for (const t of tables) {
+            const schema = rand.bool() ? 'public.' : '';
+            lines.push(kw(rand.bool() ? 'create table' : 'create table if not exists') + space() + schema + t + ' (id uuid primary key);');
+            if (rand.bool()) lines.push(kw('alter table') + space() + (rand.bool() ? 'public.' : '') + t + space() + kw('enable row level security') + ';');
+          }
+          return [lines.join('\\n')];
+        }, 40);`,
+        },
       ],
       typeTests: [{ name: 'Returns string[]', code: `const r: string[] = tablesWithoutRls('');` }],
     },

@@ -216,6 +216,12 @@ const w: VocabularyWord = { id: 'w1', term: 'Hund', translation: 'dog', category
           code: `// @ts-expect-error
 const w: VocabularyWord = { id: 1, term: 'Hund', translation: 'dog', category: 'animals', mastered: false };`,
         },
+        {
+          name: 'Any word is accepted, not only the example one',
+          hint: 'Your interface only accepts the exact example values. Use string and boolean, not literal values.',
+          code: `const other: VocabularyWord = { id: 'x9', term: 'Apfel', translation: 'apple', category: 'food', mastered: true, example: 'Ein roter Apfel.' };
+        const makeWord = (id: string, term: string, translation: string, category: string, mastered: boolean): VocabularyWord => ({ id, term, translation, category, mastered });`,
+        },
       ],
       hints: ['Each property is `name: type;`.', 'An optional property has a `?` after its name: `example?: string;`.'],
     },
@@ -280,6 +286,12 @@ const s: LearningSession = { id: 's1', startedAt: new Date(), difficulty: 'begin
           code: `// @ts-expect-error
 const s: LearningSession = { id: 's1', startedAt: '2026-01-01', difficulty: 'beginner', wordIds: [] };`,
         },
+        {
+          name: 'Any session is accepted, not only the example one',
+          hint: 'Your LearningSession only accepts the exact example values. Use string, Date and string[].',
+          code: `const makeSession = (id: string, wordIds: string[], difficulty: Difficulty): LearningSession => ({ id, startedAt: new Date(), difficulty, wordIds });
+        const other: LearningSession = { id: 'zz', startedAt: new Date(0), difficulty: 'intermediate', wordIds: ['a', 'b', 'c'] };`,
+        },
       ],
       hints: ["A union is written with `|`: `type A = 'x' | 'y';`.", 'You can use one type alias inside another.'],
     },
@@ -330,6 +342,13 @@ function groupByCategory(words: VocabularyWord[]): Record<string, VocabularyWord
         { name: 'masteredPercentage: 2 of 3 → 67', code: `expect(masteredPercentage(words)).toBe(67);` },
         { name: 'masteredPercentage: empty → 0', code: `expect(masteredPercentage([])).toBe(0);` },
         { name: 'groupByCategory groups the words', code: `const g = groupByCategory(words); expect(Object.keys(g).sort()).toEqual(['animals', 'food']); expect(g.animals.map((w) => w.id)).toEqual(['w1', 'w2']); expect(g.food.map((w) => w.id)).toEqual(['w3']);` },
+        {
+          name: 'Works for any list',
+          code: `const categories = rand.distinct(3, () => rand.word(3, 6));
+        const anyWords = () => rand.list(rand.int(0, 10), (i) => ({ id: 'w' + i, term: rand.word(), translation: rand.word(), category: rand.pick(categories), mastered: rand.bool() }));
+        await sameAsRef('masteredPercentage', () => [anyWords()], 40);
+        await sameAsRef('groupByCategory', () => [anyWords()], 40);`,
+        },
       ],
       typeTests: [
         { name: 'masteredPercentage returns a number', code: `const p: number = masteredPercentage([]);` },
@@ -386,6 +405,13 @@ function pluck<T, K extends keyof T>(items: T[], key: K): T[K][] {
         { name: 'firstOrDefault returns the first item', code: `expect(firstOrDefault([3, 4], 0)).toBe(3);` },
         { name: 'firstOrDefault returns the fallback for []', code: `expect(firstOrDefault([], 'none')).toBe('none');` },
         { name: 'pluck reads the property', code: `expect(pluck(words, 'term')).toEqual(['Hund', 'Katze', 'Brot']);` },
+        {
+          name: 'Works for any items',
+          code: `const categories = rand.distinct(3, () => rand.word(3, 6));
+        const anyWords = () => rand.list(rand.int(0, 10), (i) => ({ id: 'w' + i, term: rand.word(), translation: rand.word(), category: rand.pick(categories), mastered: rand.bool() }));
+        await sameAsRef('firstOrDefault', () => [rand.list(rand.int(0, 3), () => rand.int(0, 99)), rand.int(-9, -1)]);
+        await sameAsRef('pluck', () => [anyWords(), rand.pick(['id', 'term', 'translation', 'category', 'mastered'])]);`,
+        },
       ],
       typeTests: [
         { name: 'firstOrDefault keeps the element type', code: `const s: string = firstOrDefault(['a'], 'z');\nconst n: number = firstOrDefault([1, 2], 0);` },

@@ -54,6 +54,11 @@ function describeProgress(name, reviewed, goal) {
       { name: 'countReviews works with zeros', code: `expect(countReviews(0, 0, 0)).toBe(0);` },
       { name: 'describeProgress builds the sentence', code: `expect(describeProgress('Ana', 12, 20)).toBe('Ana reviewed 12 of 20 words');` },
       { name: 'describeProgress works for other learners', code: `expect(describeProgress('Ben', 0, 5)).toBe('Ben reviewed 0 of 5 words');` },
+      {
+        name: 'Works for any sessions and learners',
+        code: `await sameAsRef('countReviews', () => [rand.int(0, 200), rand.int(0, 200), rand.int(0, 200)]);
+      await sameAsRef('describeProgress', () => [rand.word(3, 7), rand.int(0, 50), rand.int(1, 100)]);`,
+      },
     ],
     hints: ['A `const` variable can never be reassigned. Which keyword allows it?', 'Join strings with `+`, or use a template literal: `${name} reviewed …`.'],
   },
@@ -148,6 +153,13 @@ function toBoolean(raw) {
       { name: 'toNumber returns null for non-numbers', code: `expect(toNumber('abc')).toBeNull(); expect(toNumber('12abc')).toBeNull();` },
       { name: 'toBoolean accepts true, yes and 1', code: `expect(toBoolean('true')).toBe(true); expect(toBoolean(' YES ')).toBe(true); expect(toBoolean('1')).toBe(true);` },
       { name: "toBoolean('false') is false", code: `expect(toBoolean('false')).toBe(false); expect(toBoolean('no')).toBe(false); expect(toBoolean('')).toBe(false);` },
+      {
+        name: 'Works for any typed text',
+        code: `const pad = () => ' '.repeat(rand.int(0, 2));
+      const mixCase = (w) => [...w].map((c) => (rand.bool() ? c.toUpperCase() : c)).join('');
+      await sameAsRef('toNumber', () => [pad() + rand.pick([String(rand.int(-500, 500)), String(rand.int(-9999, 9999) / 100), rand.word(1, 4), rand.int(1, 99) + rand.word(1, 2), '']) + pad()], 40);
+      await sameAsRef('toBoolean', () => [pad() + mixCase(rand.pick(['true', 'yes', '1', 'false', 'no', '0', '11', 'yess', rand.word(1, 4)])) + pad()], 40);`,
+      },
     ],
     hints: ['`Number.isNaN(x)` tells you whether a conversion failed.', 'Normalise first: `raw.trim().toLowerCase()`.'],
   },
@@ -188,6 +200,10 @@ function toBoolean(raw) {
       { name: 'NaN', code: `expect(describeType(NaN)).toBe('NaN'); expect(describeType(Number('abc'))).toBe('NaN');` },
       { name: 'integers and decimals', code: `expect(describeType(5)).toBe('integer'); expect(describeType(-3)).toBe('integer'); expect(describeType(2.5)).toBe('decimal');` },
       { name: 'everything else uses typeof', code: `expect(describeType('hi')).toBe('string'); expect(describeType(true)).toBe('boolean'); expect(describeType(undefined)).toBe('undefined'); expect(describeType({})).toBe('object');` },
+      {
+        name: 'Works for any value',
+        code: `await sameAsRef('describeType', () => [rand.pick([rand.int(-1000, 1000), rand.int(-1000, 1000) + 0.25, NaN, null, undefined, rand.word(), rand.bool(), rand.list(rand.int(0, 3), () => rand.int(0, 9)), { n: rand.int(0, 9) }])], 40);`,
+      },
     ],
     hints: ['Check the special cases first, in order: null, array, number.', '`Array.isArray(value)` and `Number.isInteger(value)` exist.'],
   },
@@ -238,6 +254,12 @@ function isEven(n) {
       { name: 'formatDuration under an hour and exact hours', code: `expect(formatDuration(45)).toBe('0h 45m'); expect(formatDuration(120)).toBe('2h 0m');` },
       { name: 'sessionsNeeded rounds up', code: `expect(sessionsNeeded(100, 25)).toBe(4); expect(sessionsNeeded(101, 25)).toBe(5); expect(sessionsNeeded(0, 25)).toBe(0);` },
       { name: 'isEven', code: `expect(isEven(4)).toBe(true); expect(isEven(7)).toBe(false); expect(isEven(0)).toBe(true);` },
+      {
+        name: 'Works for any minutes',
+        code: `await sameAsRef('formatDuration', () => [rand.int(0, 2000)]);
+      await sameAsRef('sessionsNeeded', () => [rand.int(0, 600), rand.int(1, 90)]);
+      await sameAsRef('isEven', () => [rand.int(-1000, 1000)]);`,
+      },
     ],
     hints: ['`%` gives the remainder: `135 % 60` is `15`.', '`Math.ceil` rounds up; `Math.floor` rounds down.'],
   },
@@ -276,6 +298,15 @@ function isPassing(correct, total) {
       { name: 'accuracy with no answers is 0', code: `expect(accuracy(0, 0)).toBe(0);` },
       { name: 'isPassing needs 80% or more', code: `expect(isPassing(8, 10)).toBe(true); expect(isPassing(7, 10)).toBe(false);` },
       { name: 'isPassing needs at least 5 answers', code: `expect(isPassing(4, 4)).toBe(false); expect(isPassing(5, 5)).toBe(true);` },
+      {
+        name: 'Works for any score',
+        code: `const score = () => {
+        const total = rand.int(0, 40);
+        return [rand.int(0, total), total];
+      };
+      await sameAsRef('accuracy', score, 40);
+      await sameAsRef('isPassing', score, 40);`,
+      },
     ],
     hints: ['`0 / 0` is `NaN`. Handle `total === 0` first.', 'Combine two conditions with `&&`.'],
   },
@@ -317,6 +348,10 @@ function isPassing(correct, total) {
       { name: 'Slow answers are hard', code: `expect(rateAnswer(true, false, 21)).toBe('hard');` },
       { name: 'Boundaries: 20 s is good, 8 s is easy', code: `expect(rateAnswer(true, false, 20)).toBe('good'); expect(rateAnswer(true, false, 8)).toBe('easy');` },
       { name: 'Fast and unaided is easy', code: `expect(rateAnswer(true, false, 3)).toBe('easy');` },
+      {
+        name: 'Works for any answer',
+        code: `await sameAsRef('rateAnswer', () => [rand.bool(), rand.bool(), rand.int(0, 40)], 40);`,
+      },
     ],
     hints: ['Check the most important rule first and `return` early.', '`||` means "or": either condition is enough.'],
   },
@@ -356,6 +391,10 @@ function isPassing(correct, total) {
       { name: 'Every level', code: `expect(levelFor(50)).toBe('A1'); expect(levelFor(150)).toBe('A2'); expect(levelFor(400)).toBe('B1'); expect(levelFor(900)).toBe('B2'); expect(levelFor(5000)).toBe('C1');` },
       { name: 'Exact boundaries', code: `expect(levelFor(0)).toBe('A1'); expect(levelFor(99)).toBe('A1'); expect(levelFor(100)).toBe('A2'); expect(levelFor(699)).toBe('B1'); expect(levelFor(700)).toBe('B2'); expect(levelFor(1200)).toBe('C1');` },
       { name: 'Invalid input', code: `expect(levelFor(-1)).toBe('invalid'); expect(levelFor('150')).toBe('invalid'); expect(levelFor(NaN)).toBe('invalid'); expect(levelFor(undefined)).toBe('invalid');` },
+      {
+        name: 'Works for any points',
+        code: `await sameAsRef('levelFor', () => [rand.pick([rand.int(-50, 2000), rand.int(0, 1500), String(rand.int(0, 900)), rand.int(0, 2000) + 0.5])], 40);`,
+      },
     ],
     hints: ['Reject invalid input first, then check the ranges from smallest to largest.'],
   },
@@ -397,6 +436,11 @@ function formatWord(term, translation, showTranslation = true) {
       { name: 'formatWord shows the translation by default', code: `expect(formatWord('Hund', 'dog')).toBe('Hund — dog');` },
       { name: 'formatWord can hide it', code: `expect(formatWord('Hund', 'dog', false)).toBe('Hund — ?');` },
       { name: 'formatWord capitalises the term', code: `expect(formatWord('katze', 'cat', true)).toBe('Katze — cat');` },
+      {
+        name: 'Works for any word',
+        code: `await sameAsRef('capitalize', () => [rand.word(0, 8)]);
+      await sameAsRef('formatWord', () => (rand.bool() ? [rand.word(), rand.word()] : [rand.word(), rand.word(), rand.bool()]), 30);`,
+      },
     ],
     hints: ['A default value is written in the parameter list: `function f(a, b = true)`.', '`word[0]` is the first letter and `word.slice(1)` is the rest.'],
   },
@@ -443,6 +487,19 @@ function applyTimes(fn, value, times) {
       { name: 'Each multiplier keeps its own n', code: `const double = makeMultiplier(2); const ten = makeMultiplier(10); expect(double(5)).toBe(10); expect(ten(5)).toBe(50);` },
       { name: 'applyTimes repeats the function', code: `expect(applyTimes(makeMultiplier(2), 1, 5)).toBe(32); expect(applyTimes((s) => s + '!', 'hi', 3)).toBe('hi!!!');` },
       { name: 'applyTimes with 0 returns the value', code: `expect(applyTimes((x) => x + 1, 7, 0)).toBe(7);` },
+      {
+        name: 'Works for any numbers',
+        code: `for (let i = 0; i < 20; i++) {
+        const n = rand.int(-20, 20);
+        const x = rand.int(1, 50);
+        expect(makeMultiplier(n)(x)).toBe(n * x);
+      }
+      const times = rand.int(0, 12);
+      const start = rand.int(1, 9);
+      let calls = 0;
+      expect(applyTimes((x) => { calls++; return x + 3; }, start, times)).toBe(start + 3 * times);
+      expect(calls).toBe(times);`,
+      },
     ],
     hints: ['`return (x) => x * n;` returns a function that remembers `n`.', 'Keep the running result in a variable and update it in a loop.'],
   },
@@ -500,6 +557,21 @@ function lastN(list, n) {
       { name: 'lastN', code: `expect(lastN(words, 2)).toEqual(['Katze', 'Brot']); expect(lastN(words, 10)).toEqual(['Hund', 'Katze', 'Brot']); expect(lastN(words, 0)).toEqual([]);` },
       { name: 'Never changes the original array', code: `addWord(words, 'Apfel'); removeWord(words, 'Hund'); lastN(words, 1); expect(JSON.stringify(words)).toBe(before);` },
       { name: 'Always returns a new array', code: `expect(addWord(words, 'hund') === words).toBe(false);` },
+      {
+        name: 'Works for any list',
+        code: `const list = () => rand.distinct(rand.int(0, 6), () => rand.word(3, 6));
+      await sameAsRef('addWord', () => {
+        const l = list();
+        const term = l.length > 0 && rand.bool() ? rand.pick(l) : rand.word(3, 6);
+        return [l, rand.bool() ? term.toUpperCase() : term];
+      });
+      await sameAsRef('removeWord', () => {
+        const l = list();
+        const term = l.length > 0 && rand.bool() ? rand.pick(l) : rand.word(3, 6);
+        return [l, rand.bool() ? term : term.toUpperCase()];
+      });
+      await sameAsRef('lastN', () => [list(), rand.int(-2, 8)]);`,
+      },
     ],
     hints: ['`[...list, term]` makes a new array with one more item.', '`list.slice(-0)` returns the whole list, so handle `n <= 0` yourself.'],
   },
@@ -537,6 +609,10 @@ function lastN(list, n) {
       { name: 'Exact division', code: `expect(chunk([1, 2, 3, 4, 5, 6], 3)).toEqual([[1, 2, 3], [4, 5, 6]]);` },
       { name: 'Empty list', code: `expect(chunk([], 3)).toEqual([]);` },
       { name: 'Invalid size throws', code: `expect(() => chunk([1], 0)).toThrow('size must be at least 1');` },
+      {
+        name: 'Works for any list and size',
+        code: `await sameAsRef('chunk', () => [rand.list(rand.int(0, 15), (i) => i), rand.int(-1, 6)], 40);`,
+      },
     ],
     hints: ['Loop with `i += size` and take `list.slice(i, i + size)` each time.', '`throw new Error(message)` stops the function.'],
   },
@@ -578,6 +654,11 @@ function recordResult(card, correct) {
       { name: 'recordResult counts the review', code: `const card = recordResult(createCard('Hund', 'dog'), true); expect(card.reviews).toBe(1); expect(card.lastResult).toBe('correct');` },
       { name: 'Wrong answers are recorded too', code: `const card = recordResult(recordResult(createCard('Hund', 'dog'), true), false); expect(card.reviews).toBe(2); expect(card.lastResult).toBe('wrong');` },
       { name: 'The original card does not change', code: `const card = createCard('Hund', 'dog'); recordResult(card, true); expect(card).toEqual({ term: 'Hund', translation: 'dog', reviews: 0, lastResult: null });` },
+      {
+        name: 'Works for any card',
+        code: `await sameAsRef('createCard', () => [rand.word(), rand.word()]);
+      await sameAsRef('recordResult', () => [{ term: rand.word(), translation: rand.word(), reviews: rand.int(0, 30), lastResult: rand.pick([null, 'correct', 'wrong']) }, rand.bool()]);`,
+      },
     ],
     hints: ['`{ ...card, reviews: … }` copies the card and overrides some properties.'],
   },
@@ -633,6 +714,19 @@ function invert(dictionary) {
       { name: 'countBy any property', code: `expect(countBy([{ level: 'A1' }, { level: 'A1' }, { level: 'B1' }], 'level')).toEqual({ A1: 2, B1: 1 });` },
       { name: 'countBy of an empty list', code: `expect(countBy([], 'x')).toEqual({});` },
       { name: 'invert', code: `expect(invert({ Hund: 'dog', Katze: 'cat' })).toEqual({ dog: 'Hund', cat: 'Katze' }); expect(invert({})).toEqual({});` },
+      {
+        name: 'Works for any items',
+        code: `await sameAsRef('countBy', () => {
+        const key = rand.word(2, 5);
+        const values = rand.distinct(3, () => rand.word(2, 5));
+        return [rand.list(rand.int(0, 10), () => (rand.int(0, 4) === 0 ? { other: 1 } : { [key]: rand.pick(values) })), key];
+      });
+      await sameAsRef('invert', () => {
+        const keys = rand.distinct(rand.int(0, 5), () => rand.word(3, 6));
+        const values = rand.distinct(keys.length, () => rand.word(3, 6).toUpperCase());
+        return [Object.fromEntries(keys.map((k, i) => [k, values[i]]))];
+      });`,
+      },
     ],
     hints: ['Use bracket notation for a property whose name is in a variable: `item[key]`.', '`for (const key in object)` visits every key.'],
   },
@@ -683,6 +777,13 @@ function invert(dictionary) {
         name: 'Stops as soon as the queue is full',
         code: `const trap = { term: 'Trap', get due() { throw new Error('The loop kept going after the queue was full'); } };
 expect(reviewQueue([...cards, trap], 3)).toEqual(['Hund', 'Apfel', 'Milch']);`,
+      },
+      {
+        name: 'Works for any deck',
+        code: `await sameAsRef('reviewQueue', () => {
+        const cards = rand.list(rand.int(0, 10), () => (rand.bool() ? { term: rand.word(), due: rand.bool() } : { term: rand.word(), due: rand.bool(), suspended: rand.bool() }));
+        return [cards, rand.int(0, 6)];
+      }, 40);`,
       },
     ],
     hints: ['Check whether the queue is full at the start of each loop iteration.', '`continue` skips to the next card; `break` leaves the loop.'],
@@ -735,6 +836,12 @@ function currentStreak(results) {
       { name: 'longestStreak', code: `expect(longestStreak([true, true, false, true, true, true, false])).toBe(3);` },
       { name: 'longestStreak edge cases', code: `expect(longestStreak([])).toBe(0); expect(longestStreak([false, false])).toBe(0); expect(longestStreak([true, true, true])).toBe(3);` },
       { name: 'currentStreak', code: `expect(currentStreak([true, false, true, true])).toBe(2); expect(currentStreak([true, true, false])).toBe(0); expect(currentStreak([])).toBe(0);` },
+      {
+        name: 'Works for any history',
+        code: `const history = () => [rand.list(rand.int(0, 20), () => rand.next() < 0.65)];
+      await sameAsRef('longestStreak', history, 40);
+      await sameAsRef('currentStreak', history, 40);`,
+      },
     ],
     hints: ['Keep two counters: the current run and the best run so far.', 'For the current streak, loop backwards from the last index.'],
   },
@@ -788,6 +895,13 @@ const before = JSON.stringify(words);`,
       { name: 'dueSummary with nothing due', code: `expect(dueSummary(words.filter((w) => !w.due))).toBe('Nothing due today'); expect(dueSummary([])).toBe('Nothing due today');` },
       { name: 'totalReviews treats missing reviews as 0', code: `expect(totalReviews(words)).toBe(7); expect(totalReviews([])).toBe(0);` },
       { name: 'Does not change the input', code: `dueSummary(words); totalReviews(words); expect(JSON.stringify(words)).toBe(before);` },
+      {
+        name: 'Works for any word list',
+        code: `const cap = (w) => w[0].toUpperCase() + w.slice(1);
+      const anyWords = () => rand.distinct(rand.int(0, 8), () => cap(rand.word(3, 7))).map((term) => (rand.bool() ? { term, due: rand.bool(), reviews: rand.int(0, 9) } : { term, due: rand.bool() }));
+      await sameAsRef('dueSummary', anyWords, 40);
+      await sameAsRef('totalReviews', anyWords, 40);`,
+      },
     ],
     hints: ['Chain the methods: `words.filter(…).map(…).sort()`.', '`reduce((sum, w) => sum + …, 0)` starts the sum at 0.'],
   },
@@ -836,6 +950,13 @@ const before = JSON.stringify(entries);`,
       { name: 'Sums per user and keeps the top 3', code: `expect(leaderboard(entries)).toEqual([{ user: 'ana', total: 13 }, { user: 'cleo', total: 13 }, { user: 'ben', total: 7 }]);` },
       { name: 'Fewer than 3 users', code: `expect(leaderboard([{ user: 'zoe', points: 1 }])).toEqual([{ user: 'zoe', total: 1 }]); expect(leaderboard([])).toEqual([]);` },
       { name: 'Does not change the input', code: `leaderboard(entries); expect(JSON.stringify(entries)).toBe(before);` },
+      {
+        name: 'Works for any entries',
+        code: `await sameAsRef('leaderboard', () => {
+        const users = rand.distinct(rand.int(1, 5), () => rand.word(3, 5));
+        return [rand.list(rand.int(0, 12), () => ({ user: rand.pick(users), points: rand.int(1, 6) }))];
+      }, 40);`,
+      },
     ],
     hints: ['First build an object of totals with `reduce`, then turn it into an array with `Object.entries`.', '`sort` changes the array it is called on: sort a new array, never the input.'],
   },
@@ -887,6 +1008,20 @@ const before = JSON.stringify(entries);`,
       { name: 'Never below 0', code: `const c = createCounter(1); c.decrement(); c.decrement(); expect(c.value()).toBe(0);` },
       { name: 'Counters are independent', code: `const a = createCounter(); const b = createCounter(10); a.increment(); expect(a.value()).toBe(1); expect(b.value()).toBe(10);` },
       { name: 'The count is private', code: `const c = createCounter(3); expect(c.count).toBeUndefined(); c.count = 100; expect(c.value()).toBe(3);` },
+      {
+        name: 'Behaves correctly for any sequence of clicks',
+        code: `for (let round = 0; round < 15; round++) {
+        const start = rand.bool() ? undefined : rand.int(0, 5);
+        const mine = start === undefined ? createCounter() : createCounter(start);
+        const theirs = start === undefined ? ref.createCounter() : ref.createCounter(start);
+        const ops = rand.list(rand.int(0, 15), () => rand.pick(['increment', 'decrement']));
+        for (const op of ops) {
+          mine[op]();
+          theirs[op]();
+        }
+        expect(mine.value()).toBe(theirs.value());
+      }`,
+      },
     ],
     hints: ['Declare `let count = start;` inside `createCounter`; the methods can still see it after it returns.'],
   },
@@ -947,6 +1082,22 @@ const square = (n) => {
       { name: 'once passes the arguments the first time', code: `const add = once((a, b) => a + b); expect(add(2, 3)).toBe(5); expect(add(10, 10)).toBe(5);` },
       { name: 'memoize remembers results', code: `const fast = memoize(square); expect(fast(4)).toBe(16); expect(fast(4)).toBe(16); expect(calls).toBe(1); expect(fast(5)).toBe(25); expect(calls).toBe(2);` },
       { name: 'Each memoized function has its own memory', code: `const a = memoize(square); const b = memoize(square); a(3); b(3); expect(calls).toBe(2);` },
+      {
+        name: 'Work for any calls',
+        code: `const a = rand.int(1, 50);
+      const b = rand.int(1, 50);
+      let onceCalls = 0;
+      const first = once((x, y) => { onceCalls++; return x * y; });
+      expect(first(a, b)).toBe(a * b);
+      expect(first(rand.int(51, 99), rand.int(51, 99))).toBe(a * b);
+      expect(onceCalls).toBe(1);
+      let memoCalls = 0;
+      const k = rand.int(2, 9);
+      const slow = memoize((x) => { memoCalls++; return x * k + 1; });
+      const inputs = rand.list(25, () => rand.int(0, 7));
+      for (const x of inputs) expect(slow(x)).toBe(x * k + 1);
+      expect(memoCalls).toBe(new Set(inputs).size);`,
+      },
     ],
     hints: ['Store "has it been called?" and the result in variables inside `once`.', 'A `Map` (or an object) works as the cache.'],
   },

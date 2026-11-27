@@ -165,6 +165,24 @@ const onResult = (correct) => results.push(correct);`,
         { name: 'A wrong answer shows the translation', hidden: true, code: `const r = render(h(TypingQuiz, { word, onResult })); r.type(r.byTestId('answer'), 'cat'); r.press(r.byTestId('check')); expect(r.textOf(r.byTestId('feedback'))).toBe('Not quite — dog'); expect(results).toEqual([false]);` },
         { name: 'Empty answer: asks to type, no result', hidden: true, code: `const r = render(h(TypingQuiz, { word, onResult })); r.type(r.byTestId('answer'), '   '); r.press(r.byTestId('check')); expect(r.textOf(r.byTestId('feedback'))).toBe('Type an answer first'); expect(results).toEqual([]);` },
         { name: 'onResult is called only once', hidden: true, code: `const r = render(h(TypingQuiz, { word, onResult })); r.type(r.byTestId('answer'), 'dog'); r.press(r.byTestId('check')); r.press(r.byTestId('check')); expect(results).toEqual([true]);` },
+        {
+          name: 'Any word and any answer',
+          hidden: true,
+          code: `for (let round = 0; round < 10; round++) {
+          const w = { id: 'w' + round, term: rand.word(4, 8), translation: rand.word(3, 7) };
+          const got = [];
+          const r = render(h(TypingQuiz, { word: w, onResult: (correct) => got.push(correct) }));
+          const pad = () => ' '.repeat(rand.int(0, 2));
+          const kind = rand.pick(['right', 'shouted', 'wrong', 'empty']);
+          const typed = kind === 'right' ? w.translation : kind === 'shouted' ? w.translation.toUpperCase() : kind === 'wrong' ? w.translation + rand.word(1, 2) : '';
+          r.type(r.byTestId('answer'), pad() + typed + pad());
+          r.press(r.byTestId('check'));
+          r.press(r.byTestId('check'));
+          const correct = kind === 'right' || kind === 'shouted';
+          expect(r.textOf(r.byTestId('feedback'))).toBe(kind === 'empty' ? 'Type an answer first' : correct ? 'Correct!' : 'Not quite — ' + w.translation);
+          expect(got).toEqual(kind === 'empty' ? [] : [correct]);
+        }`,
+        },
       ],
     },
   ],

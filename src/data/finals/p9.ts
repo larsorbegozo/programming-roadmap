@@ -127,6 +127,16 @@ function pendingBatches(local: ReviewEvent[], syncedIds: string[], batchSize: nu
         { name: 'Last batch can be smaller', hidden: true, code: `expect(pendingBatches(local, [], 2).map((b) => b.length)).toEqual([2, 2, 1]);` },
         { name: 'Nothing pending → []', hidden: true, code: `expect(pendingBatches(local, ['a', 'b', 'c', 'd', 'e'], 2)).toEqual([]);` },
         { name: 'Does not modify local', hidden: true, code: `expect(pendingBatches(local, [], 2)).toHaveLength(3); expect(JSON.stringify(local)).toBe(snapshot);` },
+        {
+          name: 'Works for any queue and batch size',
+          hidden: true,
+          code: `await sameAsRef('pendingBatches', () => {
+          const ids = rand.distinct(rand.int(0, 12), () => rand.word(2, 4));
+          const minutes = rand.shuffle(ids.map((_, i) => i));
+          const queue = ids.map((id, i) => e(id, '2026-11-20T10:' + String(minutes[i]).padStart(2, '0') + ':00Z'));
+          return [queue, ids.filter(() => rand.next() < 0.3), rand.int(1, 5)];
+        }, 40);`,
+        },
       ],
     },
   ],

@@ -27,7 +27,22 @@ Each phase also has a timed final exam with a deadline, university style (`#/exa
 
 Final exam content lives in `src/data/finals/`.
 
-Content lives in `src/data/checkpoints/p0.ts` … `p11.ts`. In development, run `window.__lyraValidate()` in the browser console: it checks that every reference solution passes all its tests and every starter fails at least one.
+Content lives in `src/data/checkpoints/p0.ts` … `p11.ts`, `src/data/finals/` and `src/data/exercises/`.
+
+### Tests that cannot be gamed
+
+Failure messages show the expected value, so tests on fixed inputs alone can be passed by hard-coding those values. Every problem therefore also checks inputs that change on every run. Test code can use:
+
+- `rand`: a seeded random generator (`int`, `float`, `bool`, `pick`, `list`, `word`, `shuffle`, `distinct`); the seed changes on each run.
+- `ref`: the reference solution's exports.
+- `await sameAsRef('fn', () => [args], runs?)`: calls the learner's `fn` and `ref.fn` on fresh arguments (25 times by default) and fails with the exact input when they differ, including when one throws and the other does not.
+- SQL: a check containing `{{user}}` changes the data first and then re-runs the learner's query, so returning the expected rows as literals fails.
+
+Randomised checks run only in the app; the downloadable VS Code file leaves them out so it never contains the solution.
+
+`npm test` (`src/lib/runner/content.test.ts`) runs every problem through the same engine as the app, in Node: each reference solution must pass under several seeds, each starter must fail, and two simulated cheats must fail too: a learner who answers every call from a table of memorised outputs (js/ts), and one who returns the expected rows as literal values (SQL). In development, `window.__lyraValidate()` in the browser console runs the basic checks in the real Web Worker.
+
+The worker also resists tampering from learner code: assertions use built-ins captured before that code runs, and the main thread only accepts a reply carrying a secret per-run nonce, so posting a fake "all passed" message does nothing.
 
 ## Run locally
 
@@ -71,7 +86,7 @@ How it works (`src/lib/cloud/`):
 - If both devices changed things before syncing, the two copies are **merged** (union of lessons, sessions, attempts, best scores…); see `merge.ts` for the rules and the one known limitation (a deletion made on both devices at once can come back).
 - App state lives in a small store (`src/lib/store.ts`) whose `getState()` is always exact, so a sync pass can never read a copy that React has not caught up with yet (that once let an older document overwrite a newer one in the cloud for a moment).
 - The cloud copy is validated before it is adopted, and the previous local copy is kept under `lyra-roadmap:v1:before-sync-backup`.
-- Run `npm test` for the sync engine tests (a fake cloud and two simulated devices).
+- `npm test` includes the sync engine tests (a fake cloud and two simulated devices).
 
 ## Project structure
 

@@ -1,11 +1,17 @@
 import type { CodeProblem, RunReport, TestResult } from '../../types/checkpoint';
-import type { WorkerRequest, WorkerResponse } from './protocol';
+import type { EngineRequest, WorkerReply, WorkerResponse } from './protocol';
 import { stripModuleSyntax, transpile, typeCheck } from './typescript';
 
 const JS_TIMEOUT_MS = 6000;
 const SQL_TIMEOUT_MS = 15000;
 
-function runInWorker(request: WorkerRequest, timeoutMs: number): Promise<WorkerResponse> {
+function randomNonce(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+function runInWorker(request: EngineRequest, timeoutMs: number): Promise<WorkerResponse> {
+  const nonce = randomNonce();
   return new Promise((resolve) => {
     const worker = new Worker(new URL('./runner.worker.ts', import.meta.url), { type: 'module' });
     const timer = setTimeout(() => {
@@ -16,17 +22,19 @@ function runInWorker(request: WorkerRequest, timeoutMs: number): Promise<WorkerR
         error: 'Your code took too long and was stopped. Check for an infinite loop.',
       });
     }, timeoutMs);
-    worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
+    worker.onmessage = (event: MessageEvent<WorkerReply>) => {
+      // Anything without the nonce was posted by learner code, not by the engine.
+      if (event.data?.nonce !== nonce) return;
       clearTimeout(timer);
       worker.terminate();
-      resolve(event.data);
+      resolve(event.data.response);
     };
     worker.onerror = (event) => {
       clearTimeout(timer);
       worker.terminate();
       resolve({ results: [], logs: [], error: `The code runner failed to start: ${event.message || 'unknown error'}` });
     };
-    worker.postMessage(request);
+    worker.postMessage({ nonce, request });
   });
 }
 
@@ -40,13 +48,26 @@ function report(results: TestResult[], response: Partial<WorkerResponse> = {}): 
   };
 }
 
+/** Plain JavaScript runs as written; TypeScript, JSX and React Native are transpiled first. */
+async function toJs(problem: CodeProblem, source: string): Promise<{ code: string; errors: string[] }> {
+  if (problem.language === 'js') return { code: source, errors: [] };
+  return transpile(source, problem.language === 'jsx' || problem.language === 'rn');
+}
+
 export interface RunOptions {
   /** Final exams: false runs only the example (visible) tests. Defaults to true. */
   includeHidden?: boolean;
 }
 
+/** Runs a prepared request: in a Web Worker in the app, directly through the engine in `npm test`. */
+export type Executor = (request: EngineRequest, timeoutMs: number) => Promise<WorkerResponse>;
+
 /** Run the learner's code for a problem against its tests. */
-export async function runProblem(fullProblem: CodeProblem, code: string, options: RunOptions = {}): Promise<RunReport> {
+export function runProblem(problem: CodeProblem, code: string, options: RunOptions = {}): Promise<RunReport> {
+  return runProblemWith(runInWorker, problem, code, options);
+}
+
+export async function runProblemWith(execute: Executor, fullProblem: CodeProblem, code: string, options: RunOptions = {}): Promise<RunReport> {
   const includeHidden = options.includeHidden ?? true;
   const problem: CodeProblem = includeHidden
     ? fullProblem
@@ -57,7 +78,7 @@ export async function runProblem(fullProblem: CodeProblem, code: string, options
       };
   try {
     if (problem.language === 'sql') {
-      const response = await runInWorker(
+      const response = await execute(
         { kind: 'sql', setup: problem.setup ?? '', user: code, reference: problem.solution, tests: problem.tests, ordered: Boolean(problem.ordered) },
         SQL_TIMEOUT_MS,
       );
@@ -65,32 +86,33 @@ export async function runProblem(fullProblem: CodeProblem, code: string, options
     }
 
     const source = stripModuleSyntax(code);
-    let runnable = source;
     const preResults: TestResult[] = [];
 
     if (problem.language === 'ts') {
       const checked = await typeCheck(source, problem.typeTests ?? []);
       preResults.push(...checked.results);
     }
-    if (problem.language !== 'js') {
-      const out = await transpile(source, problem.language === 'jsx' || problem.language === 'rn');
-      if (out.errors.length > 0) {
-        const message = `Syntax error:\n${out.errors.slice(0, 5).join('\n')}`;
-        return report([...preResults, ...problem.tests.map((t) => ({ name: t.name, passed: false, message }))], { error: message });
-      }
-      runnable = out.code;
+    const out = await toJs(problem, source);
+    if (out.errors.length > 0) {
+      const message = `Syntax error:\n${out.errors.slice(0, 5).join('\n')}`;
+      return report([...preResults, ...problem.tests.map((t) => ({ name: t.name, passed: false, message }))], { error: message });
     }
 
     if (problem.tests.length === 0) return report(preResults);
 
-    const response = await runInWorker(
+    const reference = await toJs(problem, stripModuleSyntax(problem.solution));
+    if (reference.errors.length > 0) throw new Error(`the reference solution does not compile: ${reference.errors[0]}`);
+
+    const response = await execute(
       {
         kind: 'js',
         mode: problem.language === 'jsx' ? 'react' : problem.language === 'rn' ? 'rn' : 'plain',
-        code: runnable,
+        code: out.code,
+        reference: reference.code,
         exports: problem.exports ?? [],
         setup: problem.setup ?? '',
         tests: problem.tests,
+        seed: crypto.getRandomValues(new Uint32Array(1))[0] as number,
       },
       JS_TIMEOUT_MS,
     );

@@ -245,6 +245,20 @@ function exportUserData(db: Database, userId: string): UserExport {
         { name: 'Never leaks another user’s data', code: `expect(JSON.stringify(exportUserData(db, 'ana'))).not.toContain('ben');` },
         { name: 'Unknown user → nulls and no events', code: `expect(exportUserData(db, 'zoe')).toEqual({ user: null, reviewEvents: [], settings: null });` },
         { name: 'Does not modify the database', code: `exportUserData(db, 'ana'); expect(JSON.stringify(db)).toBe(snapshot);` },
+        {
+          name: 'Works for any database and user',
+          code: `const randomDb = () => {
+          const ids = rand.distinct(rand.int(1, 4), () => rand.word(3, 5));
+          const users = ids.filter(() => rand.next() < 0.8).map((id) => ({ id, email: id + '@example.com', createdAt: '2026-10-0' + rand.int(1, 9) }));
+          const reviewEvents = rand.list(rand.int(0, 8), (i) => ({ id: 'e' + i, userId: rand.pick(ids), wordId: 'w' + rand.int(1, 5), rating: rand.pick(['Again', 'Good', 'Easy']), at: '2026-11-2' + rand.int(0, 5) + 'T09:00:00Z' }));
+          const settings = ids.filter(() => rand.bool()).map((userId) => ({ userId, dailyGoal: rand.int(5, 50) }));
+          return { ids, db: { users, reviewEvents, settings } };
+        };
+        await sameAsRef('exportUserData', () => {
+          const { ids, db } = randomDb();
+          return [db, rand.bool() ? rand.pick(ids) : rand.word(6, 7)];
+        }, 40);`,
+        },
       ],
       hints: ['`find` returns `undefined` when nothing matches; `?? null` turns that into null.', 'Use `filter` for the events and `find` for the single records.'],
     },
@@ -281,6 +295,20 @@ function deleteUserData(db: Database, userId: string): Database {
         { name: 'Removes the user’s settings', code: `expect(deleteUserData(db, 'ana').settings).toEqual([{ userId: 'ben', dailyGoal: 10 }]);` },
         { name: 'No trace of the user remains', code: `expect(JSON.stringify(deleteUserData(db, 'ana'))).not.toContain('ana');` },
         { name: 'Does not modify the original database', code: `deleteUserData(db, 'ana'); expect(JSON.stringify(db)).toBe(snapshot);` },
+        {
+          name: 'Works for any database and user',
+          code: `const randomDb = () => {
+          const ids = rand.distinct(rand.int(1, 4), () => rand.word(3, 5));
+          const users = ids.filter(() => rand.next() < 0.8).map((id) => ({ id, email: id + '@example.com', createdAt: '2026-10-0' + rand.int(1, 9) }));
+          const reviewEvents = rand.list(rand.int(0, 8), (i) => ({ id: 'e' + i, userId: rand.pick(ids), wordId: 'w' + rand.int(1, 5), rating: rand.pick(['Again', 'Good', 'Easy']), at: '2026-11-2' + rand.int(0, 5) + 'T09:00:00Z' }));
+          const settings = ids.filter(() => rand.bool()).map((userId) => ({ userId, dailyGoal: rand.int(5, 50) }));
+          return { ids, db: { users, reviewEvents, settings } };
+        };
+        await sameAsRef('deleteUserData', () => {
+          const { ids, db } = randomDb();
+          return [db, rand.bool() ? rand.pick(ids) : rand.word(6, 7)];
+        }, 40);`,
+        },
       ],
       hints: ['Personal data lives in three places here. Filter all three.', 'Build and return a new object instead of assigning to `db`.'],
     },
@@ -335,6 +363,13 @@ function toAnalyticsEvent(answer: AnswerRecord, consented: boolean): AnalyticsEv
         { name: 'No consent → null', code: `expect(toAnalyticsEvent(answer, false)).toBeNull();` },
         { name: 'With consent → only the minimal fields', code: `expect(toAnalyticsEvent(answer, true)).toEqual({ name: 'answer', exerciseType: 'matching', correct: true });` },
         { name: 'Never contains identifying data', code: `const json = JSON.stringify(toAnalyticsEvent(answer, true)); for (const secret of ['ana', 'example.com', 'pixel', 'w1']) expect(json).not.toContain(secret);` },
+        {
+          name: 'Works for any answer',
+          code: `await sameAsRef('toAnalyticsEvent', () => {
+          const user = rand.word(3, 6);
+          return [{ userId: user, email: user + '@example.com', deviceId: rand.word() + '-' + rand.int(1, 999), wordId: 'w' + rand.int(1, 99), exerciseType: rand.pick(['matching', 'typing', 'multiple-choice', 'typing-from-audio']), correct: rand.bool(), responseMs: rand.int(100, 9000) }, rand.bool()];
+        }, 40);`,
+        },
       ],
       hints: ['Check consent first and return early.', 'Build the object field by field instead of spreading the whole answer.'],
     },

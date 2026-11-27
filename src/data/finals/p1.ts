@@ -251,6 +251,30 @@ export const final1: FinalExam = {
         { name: 'hardest: most wrong first, ties alphabetical, limited, no zero-wrong words', hidden: true, code: `const deck = filled(); deck.answer('Katze', 'x'); deck.answer('Katze', 'x'); deck.answer('Brot', 'x'); deck.answer('Hund', 'x'); deck.answer('Hund', 'dog'); expect(deck.hardest(5)).toEqual(['Katze', 'Brot', 'Hund']); expect(deck.hardest(1)).toEqual(['Katze']); expect(filled().hardest(3)).toEqual([]);` },
         { name: 'The words are private (closure, copies)', hidden: true, code: `const deck = filled(); expect(deck.words).toBeUndefined(); const copy = deck.list(); copy[0].correct = 99; copy.push({ term: 'X' }); expect(deck.list()).toHaveLength(3); expect(deck.list()[0].correct).toBe(0);` },
         { name: 'Every deck is independent', hidden: true, code: `const a = filled(); const b = createDeck(); expect(b.list()).toEqual([]); b.add('Zug', 'train', 'travel'); expect(a.stats().total).toBe(3);` },
+        {
+          name: 'Behaves like the reference deck for any sequence of actions',
+          hidden: true,
+          code: `for (let round = 0; round < 20; round++) {
+          const mine = createDeck();
+          const theirs = ref.createDeck();
+          const terms = rand.distinct(4, () => rand.word(3, 6));
+          const translations = terms.map(() => rand.word(3, 6));
+          const categories = rand.distinct(2, () => rand.word(3, 6));
+          const vary = (text) => ' '.repeat(rand.int(0, 1)) + (rand.bool() ? text.toUpperCase() : text) + ' '.repeat(rand.int(0, 1));
+          for (let step = 0; step < 25; step++) {
+            const i = rand.int(0, terms.length - 1);
+            const action = rand.pick(['add', 'add', 'answer', 'answer', 'answer', 'stats', 'hardest', 'list']);
+            let args;
+            if (action === 'add') args = [vary(terms[i]), rand.int(0, 9) === 0 ? '  ' : vary(translations[i]), vary(rand.pick(categories))];
+            else if (action === 'answer') args = [vary(rand.int(0, 5) === 0 ? rand.word() : terms[i]), vary(rand.bool() ? translations[i] : rand.word())];
+            else if (action === 'hardest') args = [rand.int(0, 5)];
+            else args = [];
+            const expected = theirs[action](...args);
+            const actual = mine[action](...args);
+            assert(JSON.stringify(actual) === JSON.stringify(expected), \`\${action}(\${args.map((a) => JSON.stringify(a)).join(', ')}) should return \${JSON.stringify(expected)}, received \${JSON.stringify(actual)}\`);
+          }
+        }`,
+        },
       ],
     },
   },

@@ -229,6 +229,12 @@ function updateWord(word, changes) {
         { name: 'updateWord applies the changes', code: `expect(updateWord(hund, { level: 3 })).toEqual({ term: 'Hund', translation: 'dog', level: 3, tags: ['animal'] });` },
         { name: 'updateWord does not change the original', code: `updateWord(hund, { level: 5, term: 'X' }); expect(JSON.stringify(hund)).toBe(snapshot);` },
         { name: 'updateWord returns a new object', code: `expect(updateWord(hund, {}) === hund).toBe(false);` },
+        {
+          name: 'Works for any word',
+          code: `const anyWord = () => (rand.bool() ? { term: rand.word(), translation: rand.word(), level: rand.int(1, 9) } : { term: rand.word(), translation: rand.word() });
+        await sameAsRef('describeWord', () => [anyWord()]);
+        await sameAsRef('updateWord', () => [{ ...anyWord(), tags: [rand.word()] }, rand.pick([{}, { level: rand.int(1, 9) }, { term: rand.word(), tags: [] }])]);`,
+        },
       ],
       hints: ['A parameter can be destructured directly: `function f({ a, b = 1 }) { … }`.', '`{ ...word, ...changes }` creates a new object; later properties win.'],
     },
@@ -264,6 +270,13 @@ function updateWord(word, changes) {
         { name: 'An object returns []', code: `expect(parseWordList('{"term":"Hund"}')).toEqual([]);` },
         { name: 'A number returns []', code: `expect(parseWordList('42')).toEqual([]);` },
         { name: 'An empty string returns []', code: `expect(parseWordList('')).toEqual([]);` },
+        {
+          name: 'Works for any text',
+          code: `await sameAsRef('parseWordList', () => {
+          const list = JSON.stringify(rand.list(rand.int(0, 4), () => ({ term: rand.word(), level: rand.int(1, 5) })));
+          return [rand.pick([list, list.slice(0, rand.int(1, list.length - 1)), JSON.stringify({ term: rand.word() }), String(rand.int(-99, 99)), JSON.stringify(rand.word()), 'null', rand.word()])];
+        }, 40);`,
+        },
       ],
       hints: ['Wrap `JSON.parse` in `try { … } catch { … }`.', '`Array.isArray(value)` tells you whether something is an array.'],
     },
@@ -300,6 +313,19 @@ function updateWord(word, changes) {
         { name: 'Requests the right URL', code: `await fetchWord(2); expect(calls).toEqual(['https://api.example.com/words/2']);` },
         { name: 'Rejects with "Word 7 not found" on 404', code: `await expect(() => fetchWord(7)).toReject('Word 7 not found');` },
         { name: 'Rejects with "Request failed: 500" on a server error', code: `await expect(() => fetchWord(500)).toReject('Request failed: 500');` },
+        {
+          name: 'Works for any id and server response',
+          code: `await sameAsRef('fetchWord', () => {
+          const id = rand.int(1, 999);
+          const status = rand.pick([200, 200, 404, 500, 503, 401]);
+          const body = { id, term: rand.word(), translation: rand.word() };
+          globalThis.fetch = async (url) =>
+            url === 'https://api.example.com/words/' + id
+              ? { ok: status === 200, status, json: async () => ({ ...body }) }
+              : { ok: false, status: 404, json: async () => ({}) };
+          return [id];
+        }, 30);`,
+        },
       ],
       hints: ['`fetch` does not reject on 404. Check `response.status` and `response.ok` before reading the body.', '`throw new Error(message)` inside an async function makes its promise reject.'],
     },
@@ -354,6 +380,16 @@ const fakeFetchWord = async (id) => {
         { name: 'Collects failures without stopping', code: `expect(await loadAll([1, -2, 3], fakeFetchWord)).toEqual({ words: [{ id: 1, term: 'word1' }, { id: 3, term: 'word3' }], failed: [-2] });` },
         { name: 'Runs the requests in parallel', code: `await loadAll([1, 2, 3, 4], fakeFetchWord); expect(maxActive).toBe(4);` },
         { name: 'Handles an empty list', code: `expect(await loadAll([], fakeFetchWord)).toEqual({ words: [], failed: [] });` },
+        {
+          name: 'Works for any ids',
+          code: `const ids = rand.distinct(rand.int(1, 8), () => rand.int(-20, 20));
+        active = 0;
+        maxActive = 0;
+        await sameAsRef('loadAll', () => [ids, fakeFetchWord], 1);
+        maxActive = 0;
+        await loadAll(ids, fakeFetchWord);
+        expect(maxActive).toBe(ids.length);`,
+        },
       ],
       hints: [
         'Start every request first (`ids.map(...)` gives you an array of promises), then wait for all of them.',

@@ -134,6 +134,16 @@ function applyRetention(events: ReviewEvent[], deletedUserIds: string[], today: 
         { name: 'Exactly maxAgeDays old is kept', hidden: true, code: `expect(applyRetention([e('x', 'a', '2026-11-16T23:59:00Z')], [], '2026-11-26', 10).map((x) => x.id)).toEqual(['x']); expect(applyRetention([e('y', 'a', '2026-11-15T00:00:00Z')], [], '2026-11-26', 10)).toEqual([]);` },
         { name: 'Several deleted users', hidden: true, code: `expect(applyRetention(events, ['ana', 'cleo'], '2026-11-26', 10000).map((x) => x.id)).toEqual(['2']);` },
         { name: 'Does not modify the input', hidden: true, code: `expect(applyRetention(events, ['ana'], '2026-11-26', 1).map((x) => x.id)).toEqual(['2']); expect(JSON.stringify(events)).toBe(snapshot);` },
+        {
+          name: 'Works for any events, users and dates',
+          hidden: true,
+          code: `await sameAsRef('applyRetention', () => {
+          const users = rand.distinct(rand.int(1, 4), () => rand.word(3, 5));
+          const day = () => '2026-' + String(rand.int(1, 11)).padStart(2, '0') + '-' + String(rand.int(1, 28)).padStart(2, '0');
+          const list = rand.list(rand.int(0, 10), (i) => e(String(i), rand.pick(users), day() + 'T' + String(rand.int(0, 23)).padStart(2, '0') + ':' + String(rand.int(0, 59)).padStart(2, '0') + ':00Z'));
+          return [list, users.filter(() => rand.next() < 0.3), '2026-11-' + String(rand.int(1, 28)).padStart(2, '0'), rand.int(0, 200)];
+        }, 40);`,
+        },
       ],
       typeTests: [{ name: 'Returns ReviewEvent[]', code: `const r: ReviewEvent[] = applyRetention([], [], '2026-01-01', 30);` }],
     },
