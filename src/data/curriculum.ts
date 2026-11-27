@@ -178,7 +178,6 @@ const phaseInputs: PhaseInput[] = [
         description: 'Ordered lists of values, such as a list of vocabulary words.',
         objectives: ['Create arrays and access items by index.', 'Add and remove items with push, pop, etc.', 'Get the length of an array.'],
         resources: ['fcc-js', 'jsinfo-array'],
-        exercises: ['Build an array of vocabulary words'],
         minutes: 90,
       },
       {
@@ -186,7 +185,6 @@ const phaseInputs: PhaseInput[] = [
         description: 'Group related data under named keys, like a word, its translation and its category.',
         objectives: ['Create objects with properties.', 'Read and update properties with dot and bracket notation.', 'Nest objects and arrays.'],
         resources: ['fcc-js', 'jsinfo-object'],
-        exercises: ['Create a vocabulary object (word, translation, category, mastered)'],
         minutes: 90,
       },
       {
@@ -194,14 +192,12 @@ const phaseInputs: PhaseInput[] = [
         description: 'Repeat work with for, while and for...of loops.',
         objectives: ['Write for and while loops.', 'Iterate arrays with for...of.', 'Avoid infinite loops.'],
         resources: ['fcc-js', 'jsinfo-loops'],
-        exercises: ['Mark vocabulary items as mastered by looping over the array'],
       },
       {
         title: 'Array methods: map, filter, find, reduce',
         description: 'The modern, expressive way to transform and query arrays.',
         objectives: ['Transform arrays with map.', 'Select items with filter and find.', 'Compute totals with reduce.'],
         resources: ['jsinfo-array-methods', 'fcc-js'],
-        exercises: ['Filter vocabulary by category', 'Calculate the percentage of mastered words'],
         difficulty: 'intermediate',
         minutes: 120,
       },

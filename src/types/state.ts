@@ -57,6 +57,9 @@ export interface ExamAttempt {
   questionResults: Record<string, boolean>;
   /** problemId -> fraction of tests passed, 0–1. */
   problemScores: Record<string, number>;
+  /** Two-stage exams: the score of each stage, 0–100 (projectPercent is absent if the questions failed). */
+  questionPercent?: number;
+  projectPercent?: number;
 }
 
 /** The exam currently being taken; persisted so the clock survives a reload. */
@@ -67,6 +70,13 @@ export interface ActiveExam {
   answers: Record<string, ExamAnswer>;
   code: Record<string, string>;
   orders: Record<string, number[]>;
+  /** Two-stage exams: 'project-ready' after the questions passed, 'project' once the project clock started. */
+  stage?: 'questions' | 'project-ready' | 'project';
+  questionPercent?: number;
+  questionResults?: Record<string, boolean>;
+  problemScores?: Record<string, number>;
+  /** In 'project-ready' this is when the break ends and the project clock starts by itself. */
+  projectStartedAt?: string;
 }
 
 export interface Settings {
@@ -90,6 +100,8 @@ export interface AppState {
   achievements: Record<string, string>;
   /** phaseId -> checkpoint progress. */
   checkpoints: Record<string, CheckpointProgress>;
+  /** Lesson coding exercises: exerciseId -> latest code and when it first passed. */
+  lessonExercises: Record<string, ProblemProgress>;
   examPlan: ExamPlan | null;
   /** phaseId -> every submitted final exam attempt. */
   examAttempts: Record<string, ExamAttempt[]>;

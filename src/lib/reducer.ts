@@ -23,6 +23,9 @@ export type Action =
   | { type: 'updateExamAnswer'; questionId: string; answer: ExamAnswer | null }
   | { type: 'updateExamCode'; problemId: string; code: string }
   | { type: 'finishExam'; phaseId: string; attempt: ExamAttempt }
+  | { type: 'saveExerciseCode'; exerciseId: string; code: string }
+  | { type: 'markExercisePassed'; exerciseId: string; code: string }
+  | { type: 'updateActiveExam'; changes: Partial<ActiveExam> }
   | { type: 'applyRemote'; snapshotJson: string; state: AppState }
   | { type: 'replaceState'; state: AppState }
   | { type: 'reset' };
@@ -116,6 +119,21 @@ export function reducer(state: AppState, action: Action): AppState {
       const attempts = [...(state.examAttempts[action.phaseId] ?? []), action.attempt];
       return { ...state, activeExam: null, examAttempts: { ...state.examAttempts, [action.phaseId]: attempts } };
     }
+    case 'saveExerciseCode':
+      return {
+        ...state,
+        lessonExercises: { ...state.lessonExercises, [action.exerciseId]: { ...state.lessonExercises[action.exerciseId], code: action.code } },
+      };
+    case 'markExercisePassed': {
+      const prev = state.lessonExercises[action.exerciseId];
+      return {
+        ...state,
+        lessonExercises: { ...state.lessonExercises, [action.exerciseId]: { code: action.code, passedAt: prev?.passedAt ?? new Date().toISOString() } },
+      };
+    }
+    case 'updateActiveExam':
+      if (!state.activeExam) return state;
+      return { ...state, activeExam: { ...state.activeExam, ...action.changes } };
     case 'applyRemote':
       // Decided here, against the newest state, so an edit made while a sync was in flight is never overwritten.
       return serialize(state) === action.snapshotJson ? action.state : mergeStates(state, action.state, 'local');

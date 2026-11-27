@@ -1,5 +1,6 @@
 import { getCheckpoint } from '../data/checkpoints';
 import { allLessons, curriculum } from '../data/curriculum';
+import { getLessonExercises } from '../data/exercises';
 import { getFinal } from '../data/finals';
 import { allMilestones, type MilestoneDefinition } from '../data/milestones';
 import type { Lesson, Phase } from '../types/curriculum';
@@ -13,6 +14,21 @@ export function percent(done: number, total: number): number {
 
 export function isLessonComplete(state: AppState, lessonId: string): boolean {
   return Boolean(state.completedLessons[lessonId]);
+}
+
+export function isExercisePassed(state: AppState, exerciseId: string): boolean {
+  return Boolean(state.lessonExercises[exerciseId]?.passedAt);
+}
+
+/** A lesson with coding exercises can only be completed once its core exercise passes. */
+export function lessonBlockers(state: AppState, lessonId: string): string[] {
+  return getLessonExercises(lessonId)
+    .filter((e) => e.level === 'core' && !isExercisePassed(state, e.id))
+    .map((e) => e.title);
+}
+
+export function canCompleteLesson(state: AppState, lessonId: string): boolean {
+  return lessonBlockers(state, lessonId).length === 0;
 }
 
 /** Minimum quiz score (percent) needed to pass a checkpoint's questions. */

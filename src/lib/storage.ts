@@ -50,8 +50,8 @@ export function buildExport(state: AppState): string {
   return JSON.stringify({ app: 'lyra-roadmap', exportedAt: new Date().toISOString(), data: state }, null, 2);
 }
 
-export function downloadFile(filename: string, contents: string) {
-  const blob = new Blob([contents], { type: 'application/json' });
+export function downloadFile(filename: string, contents: string, type = 'application/json') {
+  const blob = new Blob([contents], { type });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;

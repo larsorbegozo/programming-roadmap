@@ -7,8 +7,10 @@ import { getResource } from '../../data/resources';
 import { useAppState } from '../../hooks/useAppState';
 import { checkpointHref, examHref, lessonHref, phaseHref } from '../../hooks/useHashRoute';
 import { formatDate, formatMinutes } from '../../lib/dates';
-import { getCheckpointStatus, getNextStep } from '../../lib/progress';
+import { getLessonExercises } from '../../data/exercises';
+import { getCheckpointStatus, getNextStep, lessonBlockers } from '../../lib/progress';
 import type { Resource } from '../../types/curriculum';
+import { LessonExercises } from './LessonExercises';
 import { NotesEditor } from './NotesEditor';
 
 export function LessonPage({ lessonId }: { lessonId: string }) {
@@ -52,7 +54,14 @@ export function LessonPage({ lessonId }: { lessonId: string }) {
   const checkpointNext = isLastInPhase && checkpoint?.exists && !checkpoint.passed && phase;
   const exercisesDone = lesson.exercises.filter((e) => state.completedExercises[e.id]).length;
 
-  const toggle = () => dispatch({ type: 'toggleLesson', lessonId: lesson.id });
+  const codeExercises = getLessonExercises(lesson.id);
+  const blockers = lessonBlockers(state, lesson.id);
+  const locked = !done && blockers.length > 0;
+  const hasExercises = codeExercises.length > 0 || lesson.exercises.length > 0;
+  const codeSolved = codeExercises.filter((e) => state.lessonExercises[e.id]?.passedAt).length;
+  const toggle = () => {
+    if (!locked) dispatch({ type: 'toggleLesson', lessonId: lesson.id });
+  };
 
   return (
     <article>
@@ -145,7 +154,19 @@ export function LessonPage({ lessonId }: { lessonId: string }) {
             )}
           </section>
 
-          {lesson.exercises.length > 0 && (
+          {codeExercises.length > 0 && phase && (
+            <section>
+              <SectionTitle action={<span className="text-[12px] tabular-nums text-subtle">{codeSolved}/{codeExercises.length} solved</span>}>
+                3 · Practical exercises
+              </SectionTitle>
+              <p className="mb-3 text-[13px] text-muted">
+                Solve them here, or use <span className="text-fg">Open in VS Code</span> to download a file you can run with <code className="rounded bg-surface-3 px-1 font-mono text-[12px]">node</code>, then paste your code back here. The core exercise is required to complete the lesson.
+              </p>
+              <LessonExercises phase={phase} lesson={lesson} exercises={codeExercises} />
+            </section>
+          )}
+
+          {codeExercises.length === 0 && lesson.exercises.length > 0 && (
             <section>
               <SectionTitle action={<span className="text-[12px] tabular-nums text-subtle">{exercisesDone}/{lesson.exercises.length}</span>}>
                 3 · Practical exercises
@@ -168,7 +189,7 @@ export function LessonPage({ lessonId }: { lessonId: string }) {
           )}
 
           <section>
-            <SectionTitle>{lesson.exercises.length > 0 ? '4' : '3'} · Personal notes</SectionTitle>
+            <SectionTitle>{hasExercises ? '4' : '3'} · Personal notes</SectionTitle>
             <NotesEditor lessonId={lesson.id} />
           </section>
         </div>
@@ -177,9 +198,13 @@ export function LessonPage({ lessonId }: { lessonId: string }) {
           <Panel className={cx('p-5', done && 'border-success/30')}>
             <p className="font-medium">{done ? 'Lesson complete' : 'Finished this lesson?'}</p>
             <p className="mt-1 text-[13px] text-muted">
-              {done ? 'Nice work. Move on when you are ready.' : 'Mark it complete once you can explain the objectives in your own words.'}
+              {done
+                ? 'Nice work. Move on when you are ready.'
+                : locked
+                  ? `Solve the core exercise first: “${blockers[0]}”.`
+                  : 'Mark it complete once you can explain the objectives in your own words.'}
             </p>
-            <Button variant={done ? 'secondary' : 'primary'} className="mt-4 w-full" onClick={toggle}>
+            <Button variant={done ? 'secondary' : 'primary'} className="mt-4 w-full" onClick={toggle} disabled={locked}>
               {done ? (
                 <>Mark as incomplete</>
               ) : (

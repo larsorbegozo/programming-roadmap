@@ -16,7 +16,7 @@ import type { ActiveExam, ExamAttempt } from '../../types/state';
 import { CodeEditor } from '../checkpoints/CodeEditor';
 import { QuestionCard } from '../checkpoints/QuestionCard';
 import { fmtDate, fmtDateYear } from './dates';
-import { gradeExam } from './grade';
+import { PROJECT_BREAK_MINUTES, PROJECT_WEIGHT, failedAtQuestions, gradeExam, gradeProject, gradeStageOne } from './grade';
 
 export function ExamPage({ phaseId }: { phaseId: string }) {
   const { state } = useAppState();
@@ -90,7 +90,7 @@ function ExamSheet({ phase, final }: { phase: Phase; final: FinalExam }) {
         <h1 className="mt-1 text-xl font-semibold tracking-tight sm:text-2xl">{phase.title}</h1>
         <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] text-muted">
           <span className="inline-flex items-center gap-1.5">
-            <Clock className="size-3.5" /> {final.minutes} minutes
+            <Clock className="size-3.5" /> {final.project ? `${final.minutes} + ${final.project.minutes} minutes` : `${final.minutes} minutes`}
           </span>
           <span className="inline-flex items-center gap-1.5">
             <ListChecks className="size-3.5" /> {final.questions.length} questions
@@ -98,6 +98,11 @@ function ExamSheet({ phase, final }: { phase: Phase; final: FinalExam }) {
           {final.problems.length > 0 && (
             <span className="inline-flex items-center gap-1.5">
               <Code2 className="size-3.5" /> {final.problems.length} coding problem{final.problems.length === 1 ? '' : 's'}
+            </span>
+          )}
+          {final.project && (
+            <span className="inline-flex items-center gap-1.5">
+              <Code2 className="size-3.5" /> Mini-project
             </span>
           )}
         </div>
@@ -165,10 +170,25 @@ function ExamSheet({ phase, final }: { phase: Phase; final: FinalExam }) {
         <section className="mb-6">
           <SectionTitle>Rules</SectionTitle>
           <ul className="flex list-disc flex-col gap-1 pl-5 text-[13px] text-muted marker:text-subtle">
+            {final.project && (
+              <>
+                <li>
+                  Two parts. <span className="text-fg">Part 1</span>: {final.questions.length} questions in {final.minutes} minutes. <span className="text-fg">Part 2</span>: a mini-project ({final.project.problem.title.replace(/^Mini-project:\s*/i, '')}) in{' '}
+                  {final.project.minutes} minutes that uses everything from this phase.
+                </li>
+                <li>
+                  You need {PASS_PERCENT}% in part 1 to unlock the project, and {PASS_PERCENT}% in the project to pass. The grade weighs the questions {Math.round((1 - PROJECT_WEIGHT) * 100)}% and the project {Math.round(PROJECT_WEIGHT * 100)}%; if either part fails, the grade is at most 3.
+                </li>
+                <li>Between the parts you get a break of up to {PROJECT_BREAK_MINUTES} minutes; the project clock starts by itself when it ends.</li>
+              </>
+            )}
             <li>One attempt per sitting. Once started, the clock keeps running even if you close the page; when time is up the exam is submitted automatically.</li>
-            <li>
-              Questions are worth 1 point each and coding problems {PROBLEM_POINTS} points each, with partial credit per test. A problem only earns points if at least one of its example tests passes. You pass with {PASS_PERCENT}% (grade 4).
-            </li>
+            {!final.project && (
+              <li>
+                Questions are worth 1 point each and coding problems {PROBLEM_POINTS} points each, with partial credit per test. A problem only earns points if at least one of its example tests passes. You pass with {PASS_PERCENT}% (grade 4).
+              </li>
+            )}
+            {final.project && <li>The project gets partial credit per test, but only if you changed the starter and at least one example test passes.</li>}
             <li>During the exam, "Run examples" only runs the example tests. Your code is graded with additional hidden tests when you submit.</li>
             <li>No hints, no reference solutions. You may use the official documentation, as in an open-book exam.</li>
             <li>Correct answers are only revealed once you pass.</li>
@@ -199,7 +219,7 @@ function ExamSheet({ phase, final }: { phase: Phase; final: FinalExam }) {
       )}
 
       <ConfirmDialog open={confirmStart} title="Start the exam now?" confirmLabel="Start" onConfirm={start} onCancel={() => setConfirmStart(false)}>
-        You will have {final.minutes} minutes. The clock cannot be paused, and this uses your one attempt for the {sittingLabel(unit.sitting).toLowerCase()} sitting.
+        You will have {final.minutes} minutes{final.project ? ` for part 1, then ${final.project.minutes} for the project` : ''}. The clock cannot be paused, and this uses your one attempt for the {sittingLabel(unit.sitting).toLowerCase()} sitting.
       </ConfirmDialog>
     </>
   );
@@ -230,8 +250,20 @@ function AttemptResults({ phase, final, attempt, maxPoints, reveal }: { phase: P
             {attempt.passed ? 'Passed' : 'Not passed'} · {attempt.percent}%
           </p>
           <p className="text-[13px] text-muted">
-            {sittingLabel(attempt.sitting)} · {fmtDateYear(attempt.submittedAt.slice(0, 10))} · {maxPoints} points in total
+            {sittingLabel(attempt.sitting)} · {fmtDateYear(attempt.submittedAt.slice(0, 10))}
+            {final.project ? '' : ` · ${maxPoints} points in total`}
           </p>
+          {final.project && attempt.questionPercent !== undefined && (
+            <p className="mt-1 text-[13px] text-muted">
+              Part 1 questions: <span className={attempt.questionPercent >= PASS_PERCENT ? 'text-success' : 'text-danger'}>{attempt.questionPercent}%</span>
+              {' · '}Part 2 project:{' '}
+              {attempt.projectPercent === undefined ? (
+                <span className="text-subtle">not unlocked</span>
+              ) : (
+                <span className={attempt.projectPercent >= PASS_PERCENT ? 'text-success' : 'text-danger'}>{attempt.projectPercent}%</span>
+              )}
+            </p>
+          )}
         </div>
       </Panel>
       <Panel className="overflow-hidden">
@@ -255,17 +287,24 @@ function AttemptResults({ phase, final, attempt, maxPoints, reveal }: { phase: P
               </li>
             );
           })}
-          {final.problems.map((p) => {
+          {[...final.problems, ...(final.project && attempt.projectPercent !== undefined ? [final.project.problem] : [])].map((p) => {
             const score = attempt.problemScores[p.id] ?? 0;
+            const isProject = p.id === final.project?.problem.id;
             return (
               <li key={p.id} className="flex gap-3 px-4 py-3 text-[13px]">
                 {score === 1 ? <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" /> : <XCircle className="mt-0.5 size-4 shrink-0 text-danger" />}
                 <div className="min-w-0 flex-1">
-                  <p className="text-subtle">Coding problem</p>
+                  <p className="text-subtle">{isProject ? 'Part 2 · project' : 'Coding problem'}</p>
                   <p className="text-fg">{p.title}</p>
+                  {reveal && isProject && (
+                    <details className="mt-1">
+                      <summary className="cursor-pointer text-accent">Reference solution</summary>
+                      <pre className="mt-2 overflow-x-auto rounded-lg border border-line bg-bg px-3 py-2.5 font-mono text-[12px] text-muted">{p.solution}</pre>
+                    </details>
+                  )}
                 </div>
                 <span className="shrink-0 tabular-nums text-muted">
-                  {Math.round(score * 100)}% of tests · {(score * PROBLEM_POINTS).toFixed(1)}/{PROBLEM_POINTS} pts
+                  {isProject ? `${Math.round(score * 100)}% of tests` : `${Math.round(score * 100)}% of tests · ${(score * PROBLEM_POINTS).toFixed(1)}/${PROBLEM_POINTS} pts`}
                 </span>
               </li>
             );
@@ -286,68 +325,126 @@ function formatClock(ms: number): string {
 }
 
 function ExamRunner({ phase, final, active }: { phase: Phase; final: FinalExam; active: ActiveExam }) {
-  const { dispatch } = useAppState();
-  const endAt = Date.parse(active.startedAt) + final.minutes * 60_000;
   const [now, setNow] = useState(() => Date.now());
-  const [grading, setGrading] = useState(false);
-  const [confirmSubmit, setConfirmSubmit] = useState(false);
-  const submitted = useRef(false);
-  const activeRef = useRef(active);
-  activeRef.current = active;
-  // Latest code typed in each problem, ahead of the debounced save.
-  const codeRef = useRef<Record<string, string>>({});
-
-  const submit = useCallback(async () => {
-    if (submitted.current) return;
-    submitted.current = true;
-    setConfirmSubmit(false);
-    setGrading(true);
-    const latest = { ...activeRef.current, code: { ...activeRef.current.code, ...codeRef.current } };
-    const attempt = await gradeExam(final, latest);
-    dispatch({ type: 'finishExam', phaseId: phase.id, attempt });
-    window.scrollTo({ top: 0 });
-  }, [dispatch, final, phase.id]);
-
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(timer);
   }, []);
 
-  const remaining = endAt - now;
-  useEffect(() => {
-    if (remaining <= 0) void submit();
-  }, [remaining, submit]);
+  let stage = active.stage ?? 'questions';
+  // The break ends by itself: the project clock starts when it runs out.
+  if (stage === 'project-ready' && active.projectStartedAt && now >= Date.parse(active.projectStartedAt)) stage = 'project';
 
-  const unanswered = final.questions.filter((q) => !isAnswered(q, active.answers[q.id])).length;
-  const lowTime = remaining < 5 * 60_000;
+  if (stage === 'project-ready') return <ProjectBreak phase={phase} final={final} active={active} now={now} />;
+  if (stage === 'project' && final.project) return <ProjectStage key="project" phase={phase} final={final} active={active} now={now} />;
+  return <QuestionsStage key="questions" phase={phase} final={final} active={active} now={now} />;
+}
 
+function ExamBar({ phase, active, label, remaining, onSubmit, disabled }: { phase: Phase; active: ActiveExam; label?: string; remaining?: number; onSubmit?: () => void; disabled?: boolean }) {
+  const lowTime = remaining !== undefined && remaining < 5 * 60_000;
   return (
-    <>
-      <div className="sticky top-14 z-10 -mx-4 mb-6 flex items-center justify-between gap-3 border-b border-line bg-bg/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6 md:top-0 lg:-mx-10 lg:px-10">
-        <div className="min-w-0">
-          <p className="truncate text-[13px] font-medium">Phase {phase.number} final · {phase.title}</p>
-          <p className="text-[12px] text-subtle">{sittingLabel(active.sitting)}</p>
-        </div>
-        <div className="flex items-center gap-3">
+    <div className="sticky top-14 z-10 -mx-4 mb-6 flex items-center justify-between gap-3 border-b border-line bg-bg/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6 md:top-0 lg:-mx-10 lg:px-10">
+      <div className="min-w-0">
+        <p className="truncate text-[13px] font-medium">Phase {phase.number} final · {phase.title}</p>
+        <p className="text-[12px] text-subtle">
+          {sittingLabel(active.sitting)}
+          {label ? ` · ${label}` : ''}
+        </p>
+      </div>
+      <div className="flex items-center gap-3">
+        {remaining !== undefined && (
           <span className={cx('inline-flex items-center gap-1.5 font-mono text-lg tabular-nums', lowTime ? 'text-danger' : 'text-fg')} aria-live="off" aria-label="Time remaining">
             <AlarmClock className="size-4" /> {formatClock(remaining)}
           </span>
-          <Button variant="primary" size="sm" onClick={() => setConfirmSubmit(true)} disabled={grading}>
+        )}
+        {onSubmit && (
+          <Button variant="primary" size="sm" onClick={onSubmit} disabled={disabled}>
             <Send className="size-4" /> Submit
           </Button>
-        </div>
+        )}
       </div>
+    </div>
+  );
+}
+
+function Grading({ what }: { what: string }) {
+  return (
+    <Panel className="flex items-center gap-3 p-6">
+      <Loader2 className="size-5 animate-spin text-accent" />
+      <div>
+        <p className="font-medium">Grading {what}…</p>
+        <p className="text-[13px] text-muted">Running your code against every test, including the hidden ones.</p>
+      </div>
+    </Panel>
+  );
+}
+
+/** Submits once, either from the button or when time runs out. */
+function useSubmitOnce(remaining: number, submit: () => Promise<void>) {
+  const submitted = useRef(false);
+  const [grading, setGrading] = useState(false);
+  const run = useCallback(async () => {
+    if (submitted.current) return;
+    submitted.current = true;
+    setGrading(true);
+    await submit();
+    window.scrollTo({ top: 0 });
+  }, [submit]);
+  useEffect(() => {
+    if (remaining <= 0) void run();
+  }, [remaining, run]);
+  return { grading, run };
+}
+
+function QuestionsStage({ phase, final, active, now }: { phase: Phase; final: FinalExam; active: ActiveExam; now: number }) {
+  const { dispatch } = useAppState();
+  const [confirmSubmit, setConfirmSubmit] = useState(false);
+  const activeRef = useRef(active);
+  activeRef.current = active;
+  // Latest code typed in each problem, ahead of the debounced save.
+  const codeRef = useRef<Record<string, string>>({});
+  const remaining = Date.parse(active.startedAt) + final.minutes * 60_000 - now;
+
+  const submit = useCallback(async () => {
+    setConfirmSubmit(false);
+    const latest = { ...activeRef.current, code: { ...activeRef.current.code, ...codeRef.current } };
+    if (!final.project) {
+      dispatch({ type: 'finishExam', phaseId: phase.id, attempt: await gradeExam(final, latest) });
+      return;
+    }
+    const result = await gradeStageOne(final, latest);
+    if (result.percent < PASS_PERCENT) {
+      dispatch({ type: 'finishExam', phaseId: phase.id, attempt: failedAtQuestions(latest, result) });
+      return;
+    }
+    dispatch({
+      type: 'updateActiveExam',
+      changes: {
+        stage: 'project-ready',
+        questionPercent: result.percent,
+        questionResults: result.questionResults,
+        problemScores: result.problemScores,
+        projectStartedAt: new Date(Date.now() + PROJECT_BREAK_MINUTES * 60_000).toISOString(),
+      },
+    });
+  }, [dispatch, final, phase.id]);
+  const { grading, run } = useSubmitOnce(remaining, submit);
+
+  const unanswered = final.questions.filter((q) => !isAnswered(q, active.answers[q.id])).length;
+
+  return (
+    <>
+      <ExamBar phase={phase} active={active} label={final.project ? 'Part 1 of 2 · Questions' : undefined} remaining={remaining} onSubmit={() => setConfirmSubmit(true)} disabled={grading} />
 
       {grading ? (
-        <Panel className="flex items-center gap-3 p-6">
-          <Loader2 className="size-5 animate-spin text-accent" />
-          <div>
-            <p className="font-medium">Grading your exam…</p>
-            <p className="text-[13px] text-muted">Running your code against every test, including the hidden ones.</p>
-          </div>
-        </Panel>
+        <Grading what={final.project ? 'part 1' : 'your exam'} />
       ) : (
         <>
+          {final.project && (
+            <p className="mb-6 rounded-lg border border-line bg-surface-2 px-4 py-3 text-[13px] text-muted">
+              Part 1 of 2. You need {PASS_PERCENT}% here to unlock the {final.project.minutes}-minute mini-project. Both parts must pass.
+            </p>
+          )}
           <section className="mb-8">
             <SectionTitle>Questions · 1 point each</SectionTitle>
             <ol className="flex flex-col gap-3">
@@ -387,15 +484,121 @@ function ExamRunner({ phase, final, active }: { phase: Phase; final: FinalExam; 
 
           <div className="flex justify-end">
             <Button variant="primary" onClick={() => setConfirmSubmit(true)}>
-              <Send className="size-4" /> Submit exam
+              <Send className="size-4" /> {final.project ? 'Submit part 1' : 'Submit exam'}
             </Button>
           </div>
         </>
       )}
 
-      <ConfirmDialog open={confirmSubmit} title="Submit your exam?" confirmLabel="Submit" onConfirm={() => void submit()} onCancel={() => setConfirmSubmit(false)}>
+      <ConfirmDialog
+        open={confirmSubmit}
+        title={final.project ? 'Submit part 1?' : 'Submit your exam?'}
+        confirmLabel="Submit"
+        onConfirm={() => {
+          setConfirmSubmit(false);
+          void run();
+        }}
+        onCancel={() => setConfirmSubmit(false)}
+      >
         {unanswered > 0 ? `${unanswered} question${unanswered === 1 ? ' is' : 's are'} still unanswered. ` : ''}
         You cannot change anything after submitting. {formatClock(remaining)} left.
+      </ConfirmDialog>
+    </>
+  );
+}
+
+function ProjectBreak({ phase, final, active, now }: { phase: Phase; final: FinalExam; active: ActiveExam; now: number }) {
+  const { dispatch } = useAppState();
+  const project = final.project!;
+  const breakLeft = active.projectStartedAt ? Date.parse(active.projectStartedAt) - now : 0;
+  const start = () => {
+    dispatch({ type: 'updateActiveExam', changes: { stage: 'project', projectStartedAt: new Date().toISOString() } });
+    window.scrollTo({ top: 0 });
+  };
+  return (
+    <>
+      <ExamBar phase={phase} active={active} label="Break before part 2" />
+      <Panel className="flex flex-col gap-4 border-success/30 p-5 sm:p-6">
+        <div className="flex items-center gap-3">
+          <CheckCircle2 className="size-6 shrink-0 text-success" />
+          <div>
+            <p className="font-medium text-success">Part 1 passed · {active.questionPercent ?? 0}%</p>
+            <p className="text-[13px] text-muted">Your answers are locked. Which ones were right is shown once the whole exam is graded.</p>
+          </div>
+        </div>
+        <div className="rounded-lg border border-line bg-surface-2 px-4 py-3 text-[13px] text-muted">
+          <p className="font-medium text-fg">Part 2 · {project.problem.title}</p>
+          <p className="mt-1">
+            A small program that uses everything from this phase. You get {project.minutes} minutes and can run the example tests as often as you like; hidden tests grade it when you submit. It is worth{' '}
+            {Math.round(PROJECT_WEIGHT * 100)}% of the final grade and needs {PASS_PERCENT}% on its own.
+          </p>
+        </div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-[13px] text-muted">
+            Take a short break if you need one. The project clock starts by itself in <span className="font-mono tabular-nums text-fg">{formatClock(breakLeft)}</span>.
+          </p>
+          <Button variant="primary" className="h-10 px-5" onClick={start}>
+            <Play className="size-4" /> Start the project
+          </Button>
+        </div>
+      </Panel>
+    </>
+  );
+}
+
+function ProjectStage({ phase, final, active, now }: { phase: Phase; final: FinalExam; active: ActiveExam; now: number }) {
+  const { dispatch } = useAppState();
+  const project = final.project!;
+  const problem = project.problem;
+  const [confirmSubmit, setConfirmSubmit] = useState(false);
+  const activeRef = useRef(active);
+  activeRef.current = active;
+  const codeRef = useRef<string | null>(null);
+  const started = Date.parse(active.projectStartedAt ?? active.startedAt);
+  const remaining = started + project.minutes * 60_000 - now;
+
+  const submit = useCallback(async () => {
+    setConfirmSubmit(false);
+    const current = activeRef.current;
+    const latest = codeRef.current === null ? current : { ...current, code: { ...current.code, [problem.id]: codeRef.current } };
+    dispatch({ type: 'finishExam', phaseId: phase.id, attempt: await gradeProject(final, latest) });
+  }, [dispatch, final, phase.id, problem.id]);
+  const { grading, run } = useSubmitOnce(remaining, submit);
+
+  return (
+    <>
+      <ExamBar phase={phase} active={active} label="Part 2 of 2 · Project" remaining={remaining} onSubmit={() => setConfirmSubmit(true)} disabled={grading} />
+      {grading ? (
+        <Grading what="your project" />
+      ) : (
+        <>
+          <ExamProblem
+            problem={problem}
+            index={0}
+            initialCode={active.code[problem.id] ?? problem.starter}
+            onCode={(code) => {
+              codeRef.current = code;
+            }}
+            onSave={(code) => dispatch({ type: 'updateExamCode', problemId: problem.id, code })}
+          />
+          <div className="mt-6 flex justify-end">
+            <Button variant="primary" onClick={() => setConfirmSubmit(true)}>
+              <Send className="size-4" /> Submit project
+            </Button>
+          </div>
+        </>
+      )}
+      <ConfirmDialog
+        open={confirmSubmit}
+        title="Submit your project?"
+        confirmLabel="Submit"
+        onConfirm={() => {
+          setConfirmSubmit(false);
+          void run();
+        }}
+        onCancel={() => setConfirmSubmit(false)}
+      >
+        It will be graded with the hidden tests and the exam will be closed. {formatClock(remaining)} left.
       </ConfirmDialog>
     </>
   );

@@ -4,6 +4,7 @@
  */
 import { checkpoints } from '../../data/checkpoints';
 import { curriculum } from '../../data/curriculum';
+import { getLessonExercises } from '../../data/exercises';
 import { finals } from '../../data/finals';
 import type { CodeProblem, Question } from '../../types/checkpoint';
 import type { Phase } from '../../types/curriculum';
@@ -60,6 +61,14 @@ export async function validateAll(filter?: string): Promise<{ issues: Validation
     const final = finals[phase.id];
     if (!cp) issues.push({ where: phase.id, problem: 'No checkpoint defined' });
     if (!final) issues.push({ where: phase.id, problem: 'No final exam defined' });
+    if (filter !== `final-${phase.id}`) {
+      for (const lesson of phase.lessons) {
+        const exercises = getLessonExercises(lesson.id);
+        if (exercises.length && !exercises.some((e) => e.level === 'core')) issues.push({ where: lesson.id, problem: 'No core exercise' });
+        await checkProblems(phase, exercises, ids, issues, lesson.id, false);
+        checked += exercises.length;
+      }
+    }
     if (cp && filter !== `final-${phase.id}`) {
       checkQuestions(phase, cp.questions, ids, issues, phase.id);
       await checkProblems(phase, cp.problems, ids, issues, phase.id, false);
@@ -69,6 +78,10 @@ export async function validateAll(filter?: string): Promise<{ issues: Validation
       checkQuestions(phase, final.questions, ids, issues, `final-${phase.id}`);
       await checkProblems(phase, final.problems, ids, issues, `final-${phase.id}`, true);
       checked += final.problems.length;
+      if (final.project) {
+        await checkProblems(phase, [final.project.problem], ids, issues, `final-${phase.id}`, true);
+        checked += 1;
+      }
       if (final.questions.length + final.problems.length === 0) issues.push({ where: `final-${phase.id}`, problem: 'Empty exam' });
     }
   }

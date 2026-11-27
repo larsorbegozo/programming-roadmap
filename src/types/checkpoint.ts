@@ -100,11 +100,25 @@ export interface RunReport {
   table?: { columns: string[]; rows: unknown[][] };
 }
 
+/** A coding exercise inside a lesson. The core one must pass before the lesson can be completed. */
+export interface LessonExercise extends CodeProblem {
+  lessonId: string;
+  level: 'core' | 'challenge';
+}
+
+/** The final mini-project: unlocked by passing the exam questions, with its own timer. */
+export interface FinalProject {
+  minutes: number;
+  problem: CodeProblem;
+}
+
 /** A timed final exam for one phase ("unidad"). */
 export interface FinalExam {
   phaseId: string;
-  /** Time limit in minutes. */
+  /** Time limit in minutes (for the questions stage when the exam has a project). */
   minutes: number;
   questions: Question[];
   problems: CodeProblem[];
+  /** Two-stage exam: questions must pass to unlock this project, and both must pass. */
+  project?: FinalProject;
 }

@@ -3,7 +3,7 @@ import { md } from '../checkpoints/md';
 
 export const final1: FinalExam = {
   phaseId: 'p1',
-  minutes: 60,
+  minutes: 25,
   questions: [
     {
       id: 'f1-q1',
@@ -98,80 +98,160 @@ export const final1: FinalExam = {
       accept: ['2'],
       explanation: 'Indexes start at 0. `indexOf` returns -1 when the item is not found.',
     },
-  ],
-  problems: [
     {
-      id: 'f1-groupByLetter',
-      title: 'Group words by first letter',
-      lesson: 7,
-      language: 'js',
-      exports: ['groupByFirstLetter'],
-      prompt: md(
-        'Write `groupByFirstLetter(terms)` that receives an array of strings and returns an object whose keys are the **uppercase** first letter and whose values are arrays of the terms starting with that letter, in their original order.',
-        '',
-        "Example: `groupByFirstLetter(['Hund', 'haus', 'Katze'])` returns `{ H: ['Hund', 'haus'], K: ['Katze'] }`.",
-        '',
-        'An empty array returns `{}`. Do not modify the input array.',
-      ),
-      starter: `function groupByFirstLetter(terms) {
-  // Your code here
-}
-`,
-      solution: `function groupByFirstLetter(terms) {
-  const groups = {};
-  for (const term of terms) {
-    const letter = term[0].toUpperCase();
-    if (!groups[letter]) groups[letter] = [];
-    groups[letter].push(term);
-  }
-  return groups;
-}
-`,
-      tests: [
-        { name: 'Groups by first letter', code: `expect(groupByFirstLetter(['Hund', 'Katze', 'Haus'])).toEqual({ H: ['Hund', 'Haus'], K: ['Katze'] });` },
-        { name: 'Lowercase words use the uppercase letter', hidden: true, code: `expect(groupByFirstLetter(['apfel', 'Ast', 'brot'])).toEqual({ A: ['apfel', 'Ast'], B: ['brot'] });` },
-        { name: 'Empty list → {}', hidden: true, code: `expect(groupByFirstLetter([])).toEqual({});` },
-        { name: 'Does not modify the input', hidden: true, code: `const input = ['Hund', 'Katze']; expect(groupByFirstLetter(input)).toEqual({ H: ['Hund'], K: ['Katze'] }); expect(input).toEqual(['Hund', 'Katze']);` },
-      ],
+      id: 'f1-q12',
+      lesson: 10,
+      kind: 'text',
+      prompt: md('What does this print?', '```js', 'function makeAdder(a) {', '  return (b) => a + b;', '}', 'const add5 = makeAdder(5);', 'console.log(add5(3) + add5(10));', '```'),
+      accept: ['23'],
+      explanation: 'Each call to `add5` remembers `a = 5`: 8 + 15 = 23.',
     },
     {
-      id: 'f1-wordsToReview',
-      title: 'Pick the words to review',
-      lesson: 9,
-      language: 'js',
-      exports: ['wordsToReview'],
-      setup: `const words = [
-  { term: 'Hund', mastered: true, mistakes: 0 },
-  { term: 'Katze', mastered: false, mistakes: 2 },
-  { term: 'Brot', mastered: false, mistakes: 5 },
-  { term: 'Apfel', mastered: false, mistakes: 2 },
-  { term: 'Milch', mastered: false, mistakes: 1 },
-];
-const snapshot = JSON.stringify(words);`,
+      id: 'f1-q13',
+      lesson: 8,
+      kind: 'text',
+      prompt: md('What does this print?', '```js', 'let total = 0;', 'for (let i = 1; i <= 5; i++) {', '  if (i === 3) continue;', '  total += i;', '}', 'console.log(total);', '```'),
+      accept: ['12'],
+      explanation: '`continue` skips 3, so the total is 1 + 2 + 4 + 5 = 12.',
+    },
+    {
+      id: 'f1-q14',
+      lesson: 4,
+      kind: 'text',
       prompt: md(
-        'Write `wordsToReview(words, maxCount)` that returns the **terms** of the words that are **not mastered**, sorted by `mistakes` from most to fewest. Words with the same number of mistakes are sorted alphabetically by term. Return at most `maxCount` terms.',
-        '',
-        'Do not modify the input array (careful: `sort` changes the array it is called on).',
+        'What does this print? (Write the word.)',
+        '```js',
+        "const level = 'B1';",
+        "let label = '';",
+        'switch (level) {',
+        "  case 'A1':",
+        "  case 'A2':",
+        "    label = 'beginner';",
+        '    break;',
+        "  case 'B1':",
+        "    label = 'intermediate';",
+        "  case 'B2':",
+        "    label = 'upper';",
+        '    break;',
+        '}',
+        'console.log(label);',
+        '```',
       ),
-      starter: `function wordsToReview(words, maxCount) {
-  // Your code here
-}
-`,
-      solution: `function wordsToReview(words, maxCount) {
-  return words
-    .filter((w) => !w.mastered)
-    .sort((a, b) => b.mistakes - a.mistakes || a.term.localeCompare(b.term))
-    .slice(0, maxCount)
-    .map((w) => w.term);
-}
-`,
-      tests: [
-        { name: 'Most mistakes first', code: `expect(wordsToReview(words, 2)).toEqual(['Brot', 'Apfel']);` },
-        { name: 'Ties are sorted alphabetically', hidden: true, code: `expect(wordsToReview(words, 4)).toEqual(['Brot', 'Apfel', 'Katze', 'Milch']);` },
-        { name: 'maxCount larger than the list', hidden: true, code: `expect(wordsToReview(words, 50)).toHaveLength(4);` },
-        { name: 'Mastered words are excluded', hidden: true, code: `const r = wordsToReview(words, 50); expect(r).toHaveLength(4); expect(r).not.toContain('Hund');` },
-        { name: 'Does not modify the input', hidden: true, code: `expect(wordsToReview(words, 3)).toHaveLength(3); expect(JSON.stringify(words)).toBe(snapshot);` },
-      ],
+      accept: ['upper'],
+      explanation: "The `B1` case has no `break`, so execution falls through into `B2` and overwrites the label with 'upper'.",
     },
   ],
+  problems: [],
+  project: {
+    minutes: 40,
+    problem: {
+      id: 'f1-project-deck',
+      title: 'Mini-project: a vocabulary deck',
+      lesson: 10,
+      language: 'js',
+      exports: ['createDeck'],
+      prompt: md(
+        'Build the core of Lyra’s vocabulary deck using everything from this unit: variables, conditionals, functions, arrays, objects, loops, array methods and closures.',
+        '',
+        '`createDeck()` returns a deck object. The words must live **inside a closure**: there is no `deck.words` property, and nobody outside can change them. The deck has these methods:',
+        '',
+        '1. `add(term, translation, category)`: trims the three texts and stores a word `{ term, translation, category, correct: 0, wrong: 0 }`. Returns `false` (and stores nothing) if any text is empty or a word with the same term already exists **ignoring case**. Otherwise returns `true`.',
+        '2. `answer(term, guess)`: finds the word by term ignoring case. Returns `null` if it does not exist. Otherwise compares the guess with the translation, **ignoring case and surrounding spaces**, adds 1 to `correct` or `wrong`, and returns `true` or `false`.',
+        '3. `stats()`: returns `{ total, mastered, accuracy, byCategory }`:',
+        '   - `total`: number of words',
+        '   - `mastered`: words with **at least 3** correct answers and more correct than wrong answers',
+        '   - `accuracy`: percentage of correct answers over all answers, rounded to a whole number (`0` if there are no answers yet)',
+        '   - `byCategory`: an object counting words per category',
+        '4. `hardest(n)`: the terms of words with at least one wrong answer, sorted by `wrong` from most to fewest (ties alphabetically), at most `n` of them.',
+        '5. `list()`: returns the words as **copies**, so changing them does not change the deck.',
+        '',
+        'The example tests only check the basics; more tests run when you submit.',
+      ),
+      starter: `function createDeck() {
+  // Keep the words in a closure
+
+  return {
+    add(term, translation, category) {},
+    answer(term, guess) {},
+    stats() {},
+    hardest(n) {},
+    list() {},
+  };
+}
+`,
+      solution: `function createDeck() {
+  const words = [];
+
+  const find = (term) => words.find((w) => w.term.toLowerCase() === term.trim().toLowerCase());
+
+  return {
+    add(term, translation, category) {
+      const t = term.trim();
+      const tr = translation.trim();
+      const c = category.trim();
+      if (!t || !tr || !c) return false;
+      if (find(t)) return false;
+      words.push({ term: t, translation: tr, category: c, correct: 0, wrong: 0 });
+      return true;
+    },
+    answer(term, guess) {
+      const word = find(term);
+      if (!word) return null;
+      const ok = guess.trim().toLowerCase() === word.translation.toLowerCase();
+      if (ok) word.correct++;
+      else word.wrong++;
+      return ok;
+    },
+    stats() {
+      let correct = 0;
+      let answers = 0;
+      const byCategory = {};
+      for (const w of words) {
+        correct += w.correct;
+        answers += w.correct + w.wrong;
+        byCategory[w.category] = (byCategory[w.category] || 0) + 1;
+      }
+      return {
+        total: words.length,
+        mastered: words.filter((w) => w.correct >= 3 && w.correct > w.wrong).length,
+        accuracy: answers === 0 ? 0 : Math.round((correct / answers) * 100),
+        byCategory,
+      };
+    },
+    hardest(n) {
+      return words
+        .filter((w) => w.wrong > 0)
+        .sort((a, b) => b.wrong - a.wrong || a.term.localeCompare(b.term))
+        .slice(0, n)
+        .map((w) => w.term);
+    },
+    list() {
+      return words.map((w) => ({ ...w }));
+    },
+  };
+}
+`,
+      setup: `function filled() {
+  const deck = createDeck();
+  deck.add('Hund', 'dog', 'animals');
+  deck.add('Katze', 'cat', 'animals');
+  deck.add('Brot', 'bread', 'food');
+  return deck;
+}`,
+      tests: [
+        { name: 'Example: add and list', code: `const deck = filled(); expect(deck.list().map((w) => w.term)).toEqual(['Hund', 'Katze', 'Brot']); expect(deck.list()[0]).toEqual({ term: 'Hund', translation: 'dog', category: 'animals', correct: 0, wrong: 0 });` },
+        { name: 'Example: answer', code: `const deck = filled(); expect(deck.answer('Hund', 'dog')).toBe(true); expect(deck.answer('Hund', 'cat')).toBe(false);` },
+        { name: 'Example: stats', code: `const deck = filled(); deck.answer('Hund', 'dog'); expect(deck.stats()).toEqual({ total: 3, mastered: 0, accuracy: 100, byCategory: { animals: 2, food: 1 } });` },
+        { name: 'add trims and rejects duplicates ignoring case', hidden: true, code: `const deck = createDeck(); expect(deck.add('  Hund ', ' dog ', ' animals ')).toBe(true); expect(deck.add('HUND', 'dog', 'animals')).toBe(false); expect(deck.list()).toEqual([{ term: 'Hund', translation: 'dog', category: 'animals', correct: 0, wrong: 0 }]);` },
+        { name: 'add rejects empty texts', hidden: true, code: `const deck = createDeck(); expect(deck.add('', 'dog', 'animals')).toBe(false); expect(deck.add('Hund', '   ', 'animals')).toBe(false); expect(deck.add('Hund', 'dog', '')).toBe(false); expect(deck.list()).toEqual([]);` },
+        { name: 'answer ignores case and spaces, finds terms ignoring case', hidden: true, code: `const deck = filled(); expect(deck.answer('katze', '  CAT ')).toBe(true); expect(deck.list()[1].correct).toBe(1);` },
+        { name: 'answer returns null for unknown words', hidden: true, code: `const deck = filled(); expect(deck.answer('Zug', 'train')).toBeNull();` },
+        { name: 'stats: mastered needs 3+ correct and more correct than wrong', hidden: true, code: `const deck = filled(); for (let i = 0; i < 3; i++) deck.answer('Hund', 'dog'); for (let i = 0; i < 3; i++) deck.answer('Katze', 'cat'); for (let i = 0; i < 3; i++) deck.answer('Katze', 'x'); expect(deck.stats().mastered).toBe(1);` },
+        { name: 'stats: accuracy is rounded and 0 without answers', hidden: true, code: `const deck = filled(); expect(deck.stats().accuracy).toBe(0); deck.answer('Hund', 'dog'); deck.answer('Hund', 'x'); deck.answer('Brot', 'bread'); expect(deck.stats().accuracy).toBe(67);` },
+        { name: 'hardest: most wrong first, ties alphabetical, limited, no zero-wrong words', hidden: true, code: `const deck = filled(); deck.answer('Katze', 'x'); deck.answer('Katze', 'x'); deck.answer('Brot', 'x'); deck.answer('Hund', 'x'); deck.answer('Hund', 'dog'); expect(deck.hardest(5)).toEqual(['Katze', 'Brot', 'Hund']); expect(deck.hardest(1)).toEqual(['Katze']); expect(filled().hardest(3)).toEqual([]);` },
+        { name: 'The words are private (closure, copies)', hidden: true, code: `const deck = filled(); expect(deck.words).toBeUndefined(); const copy = deck.list(); copy[0].correct = 99; copy.push({ term: 'X' }); expect(deck.list()).toHaveLength(3); expect(deck.list()[0].correct).toBe(0);` },
+        { name: 'Every deck is independent', hidden: true, code: `const a = filled(); const b = createDeck(); expect(b.list()).toEqual([]); b.add('Zug', 'train', 'travel'); expect(a.stats().total).toBe(3);` },
+      ],
+    },
+  },
 };

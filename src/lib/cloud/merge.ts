@@ -23,6 +23,7 @@ export function hasProgress(state: AppState): boolean {
     state.sessions.length > 0 ||
     Object.keys(state.weeklyGoals).length > 0 ||
     Object.keys(state.checkpoints).length > 0 ||
+    Object.keys(state.lessonExercises).length > 0 ||
     Object.keys(state.examAttempts).length > 0 ||
     state.examPlan !== null ||
     state.activeExam !== null ||
@@ -119,7 +120,12 @@ export function mergeStates(local: AppState, remote: AppState, prefer: Prefer): 
 
   // Two exams "in progress": keep the one that started first. Drop it if that sitting was already submitted.
   const candidates = [local.activeExam, remote.activeExam].filter((e): e is NonNullable<AppState['activeExam']> => Boolean(e));
-  candidates.sort((x, y) => (x.startedAt < y.startedAt ? -1 : x.startedAt > y.startedAt ? 1 : 0));
+  // The same exam on both sides: the one further along (questions → break → project) wins.
+  const STAGE_ORDER = { questions: 0, 'project-ready': 1, project: 2 } as const;
+  candidates.sort(
+    (x, y) =>
+      (x.startedAt < y.startedAt ? -1 : x.startedAt > y.startedAt ? 1 : 0) || STAGE_ORDER[y.stage ?? 'questions'] - STAGE_ORDER[x.stage ?? 'questions'],
+  );
   const activeExam = candidates[0] && !(examAttempts[candidates[0].phaseId] ?? []).some((a) => a.sitting === candidates[0]?.sitting) ? candidates[0] : null;
 
   // A re-plan is deliberate, so the newest calendar wins whichever side it came from.
@@ -137,6 +143,7 @@ export function mergeStates(local: AppState, remote: AppState, prefer: Prefer): 
     currentPhaseId: first.currentPhaseId ?? second.currentPhaseId,
     achievements: unionDates(local.achievements, remote.achievements),
     checkpoints: mergeCheckpoints(local.checkpoints, remote.checkpoints, prefer),
+    lessonExercises: mergeProblems(local.lessonExercises, remote.lessonExercises, prefer),
     examPlan: plans[0] ?? null,
     examAttempts,
     activeExam,

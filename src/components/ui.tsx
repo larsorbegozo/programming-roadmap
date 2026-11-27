@@ -101,20 +101,36 @@ export function ProgressRing({ value, size = 96, stroke = 7, children }: { value
   );
 }
 
-export function Checkbox({ checked, onChange, label, size = 'md' }: { checked: boolean; onChange: () => void; label: string; size?: 'sm' | 'md' }) {
+export function Checkbox({
+  checked,
+  onChange,
+  label,
+  size = 'md',
+  disabled,
+  title,
+}: {
+  checked: boolean;
+  onChange: () => void;
+  label: string;
+  size?: 'sm' | 'md';
+  disabled?: boolean;
+  title?: string;
+}) {
   return (
     <button
       type="button"
       role="checkbox"
       aria-checked={checked}
       aria-label={label}
+      disabled={disabled}
+      title={title}
       onClick={(e) => {
         e.preventDefault();
         e.stopPropagation();
-        onChange();
+        if (!disabled) onChange();
       }}
       className={cx(
-        'grid shrink-0 place-items-center rounded-md border transition-colors',
+        'grid shrink-0 place-items-center rounded-md border transition-colors disabled:cursor-not-allowed disabled:opacity-40',
         size === 'sm' ? 'size-4' : 'size-5',
         checked ? 'border-accent bg-accent text-accent-ink' : 'border-line-strong bg-surface-2 hover:border-accent/60',
       )}

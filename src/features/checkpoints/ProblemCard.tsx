@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { CheckCircle2, ChevronDown, Circle, Lightbulb, Loader2, Play, RotateCcw, Terminal, XCircle } from 'lucide-react';
 import { RichText } from '../../components/RichText';
 import { Badge, Button, cx } from '../../components/ui';
@@ -7,6 +7,7 @@ import { lessonHref } from '../../hooks/useHashRoute';
 import { runProblem } from '../../lib/runner';
 import type { Phase } from '../../types/curriculum';
 import type { CodeLanguage, CodeProblem, RunReport } from '../../types/checkpoint';
+import type { ProblemProgress } from '../../types/state';
 import { CodeEditor } from './CodeEditor';
 
 const LANGUAGE_LABEL: Record<CodeLanguage, string> = {
@@ -19,17 +20,37 @@ const LANGUAGE_LABEL: Record<CodeLanguage, string> = {
 
 const SAVE_DELAY = 600;
 
+/** Where a problem's code and result are kept. Defaults to the phase checkpoint. */
+export interface ProblemStore {
+  progress: ProblemProgress | undefined;
+  save: (code: string) => void;
+  markPassed: (code: string) => void;
+}
+
 interface ProblemCardProps {
   phase: Phase;
   problem: CodeProblem;
   index: number;
   open: boolean;
   onToggle: () => void;
+  store?: ProblemStore;
+  /** Extra badges next to the language. */
+  badge?: ReactNode;
+  /** Extra buttons in the toolbar, given the current code. */
+  toolbar?: (code: string) => ReactNode;
+  /** Transforms the editor content before running (e.g. dropping pasted checks). */
+  prepareCode?: (code: string) => string;
+  hideLessonLink?: boolean;
 }
 
-export function ProblemCard({ phase, problem, index, open, onToggle }: ProblemCardProps) {
+export function ProblemCard({ phase, problem, index, open, onToggle, store, badge, toolbar, prepareCode, hideLessonLink }: ProblemCardProps) {
   const { state, dispatch } = useAppState();
-  const saved = state.checkpoints[phase.id]?.problems[problem.id];
+  const target: ProblemStore = store ?? {
+    progress: state.checkpoints[phase.id]?.problems[problem.id],
+    save: (code) => dispatch({ type: 'saveProblemCode', phaseId: phase.id, problemId: problem.id, code }),
+    markPassed: (code) => dispatch({ type: 'markProblemPassed', phaseId: phase.id, problemId: problem.id, code }),
+  };
+  const saved = target.progress;
   const passed = Boolean(saved?.passedAt);
   const [code, setCode] = useState(saved?.code ?? problem.starter);
   const [running, setRunning] = useState(false);
@@ -46,7 +67,7 @@ export function ProblemCard({ phase, problem, index, open, onToggle }: ProblemCa
   const flush = () => {
     window.clearTimeout(timer.current);
     if (pending.current !== null) {
-      dispatch({ type: 'saveProblemCode', phaseId: phase.id, problemId: problem.id, code: pending.current });
+      target.save(pending.current);
       pending.current = null;
     }
   };
@@ -66,9 +87,10 @@ export function ProblemCard({ phase, problem, index, open, onToggle }: ProblemCa
     flush();
     setRunning(true);
     try {
-      const result = await runProblem(problem, code);
+      const runnable = prepareCode ? prepareCode(code) : code;
+      const result = await runProblem(problem, runnable);
       setReport(result);
-      if (result.passed) dispatch({ type: 'markProblemPassed', phaseId: phase.id, problemId: problem.id, code });
+      if (result.passed) target.markPassed(runnable);
     } finally {
       setRunning(false);
     }
@@ -93,7 +115,8 @@ export function ProblemCard({ phase, problem, index, open, onToggle }: ProblemCa
           </span>
           <span className="mt-1 flex flex-wrap items-center gap-2">
             <Badge tone="accent">{LANGUAGE_LABEL[problem.language]}</Badge>
-            {lesson && <span className="text-[11px] text-subtle">Lesson {lesson.number}</span>}
+            {badge}
+            {lesson && !hideLessonLink && <span className="text-[11px] text-subtle">Lesson {lesson.number}</span>}
             {passed && <Badge tone="success">Solved</Badge>}
           </span>
         </span>
@@ -131,6 +154,7 @@ export function ProblemCard({ phase, problem, index, open, onToggle }: ProblemCa
                 <RotateCcw className="size-4" /> Reset
               </Button>
             )}
+            {toolbar?.(code)}
             <span className="ml-auto hidden text-[12px] text-subtle sm:inline">Ctrl / ⌘ + Enter runs the tests</span>
           </div>
           {running && slowFirstRun && <p className="text-[12px] text-subtle">The first run loads the TypeScript compiler, which can take a few seconds.</p>}
@@ -218,7 +242,7 @@ export function ProblemCard({ phase, problem, index, open, onToggle }: ProblemCa
             </div>
           )}
 
-          {!passed && lesson && (
+          {!passed && lesson && !hideLessonLink && (
             <p className="text-[12px] text-subtle">
               Stuck? Re-read{' '}
               <a href={lessonHref(lesson.id)} className="text-accent hover:text-accent-strong">
